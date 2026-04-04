@@ -1,0 +1,12 @@
+name: physio-support-env
+version: 0.1.0
+description: OpenEnv-style environment for home physiotherapy support workflows.
+entrypoint: inference.py
+server:
+  host: 0.0.0.0
+  port: 7860
+  app: server.app:app
+tasks:
+  - task_easy_new_booking
+  - task_medium_reschedule
+  - task_hard_escalation

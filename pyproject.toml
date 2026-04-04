@@ -1,0 +1,16 @@
+[project]
+name = "physiosupportenv"
+version = "0.1.0"
+description = "OpenEnv-style physiotherapy support environment"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.7.0,<3.0.0",
+    "openai>=1.30.0,<2.0.0",
+    "fastapi>=0.110.0,<1.0.0",
+    "uvicorn>=0.29.0,<1.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

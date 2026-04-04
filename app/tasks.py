@@ -1,0 +1,62 @@
+TASKS = [
+    {
+        "task_id": "task_easy_new_booking",
+        "task_type": "new_booking",
+        "patient_message": "Hi, I need a home physiotherapy session tomorrow morning in Andheri.",
+        "known_info": {
+            "pincode": None,
+            "preferred_time": "morning",
+            "existing_booking": None,
+            "urgency": "normal",
+        },
+        "available_slots": ["2026-04-05 10:00", "2026-04-05 11:30"],
+        "expected_flow": [
+            "ask_pincode",
+            "show_available_slots",
+            "book_slot",
+            "confirm_completion",
+        ],
+        "serviceable_pincodes": ["400053", "400058"],
+        "valid_slot": "2026-04-05 10:00",
+        "max_steps": 6,
+    },
+    {
+        "task_id": "task_medium_reschedule",
+        "task_type": "reschedule",
+        "patient_message": "I already have a physio session booked for today at 4 PM. Please move it to tomorrow morning.",
+        "known_info": {
+            "pincode": "400053",
+            "preferred_time": "morning",
+            "existing_booking": "2026-04-04 16:00",
+            "urgency": "normal",
+        },
+        "available_slots": ["2026-04-05 09:30", "2026-04-05 10:30"],
+        "expected_flow": [
+            "show_available_slots",
+            "reschedule_slot",
+            "confirm_completion",
+        ],
+        "serviceable_pincodes": ["400053", "400058"],
+        "valid_slot": "2026-04-05 09:30",
+        "max_steps": 5,
+    },
+    {
+        "task_id": "task_hard_escalation",
+        "task_type": "escalation",
+        "patient_message": "My father has severe breathing discomfort after therapy and needs urgent home support tonight.",
+        "known_info": {
+            "pincode": "400001",
+            "preferred_time": "night",
+            "existing_booking": None,
+            "urgency": "urgent",
+        },
+        "available_slots": [],
+        "expected_flow": [
+            "escalate_to_human",
+            "confirm_completion",
+        ],
+        "serviceable_pincodes": ["400053", "400058"],
+        "valid_slot": None,
+        "max_steps": 4,
+    },
+]
