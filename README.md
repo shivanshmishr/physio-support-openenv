@@ -1,3 +1,14 @@
+---
+title: Physio Support Openenv
+emoji: 💻
+colorFrom: gray
+colorTo: yellow
+sdk: docker
+pinned: false
+license: mit
+short_description: OpenEnv-style physiotherapy support environment for booking, rescheduling, and escalation
+---
+
 # PhysioSupportEnv
 
 PhysioSupportEnv is a small Python environment for a physiotherapy support agent workflow.
