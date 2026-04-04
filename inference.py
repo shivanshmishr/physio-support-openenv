@@ -79,8 +79,8 @@ def validate_action_payload(action: dict, observation: dict) -> dict:
 
 
 def build_client() -> OpenAI | None:
-    api_key = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
-    base_url = os.getenv("OPENAI_BASE_URL")
+    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("HF_TOKEN")
+    base_url = os.getenv("API_BASE_URL") or os.getenv("OPENAI_BASE_URL")
 
     if not api_key:
         return None
@@ -92,7 +92,7 @@ def build_client() -> OpenAI | None:
 
 
 def llm_action(client: OpenAI, observation: dict) -> dict:
-    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    model = os.getenv("MODEL_NAME") or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     user_prompt = (
         "Choose the next action for this state.\n"
         "Return JSON only.\n"
@@ -159,6 +159,7 @@ def choose_action(client: OpenAI | None, observation: dict) -> tuple[dict, str]:
 
 def main() -> None:
     client = build_client()
+    model_name = os.getenv("MODEL_NAME") or os.getenv("OPENAI_MODEL", "fallback")
 
     for task in TASKS:
         env = PhysioSupportEnv(task)
@@ -168,7 +169,7 @@ def main() -> None:
         step_number = 0
         done = False
 
-        print(f"[START] task={task['task_id']} env=physio_support model={os.getenv('OPENAI_MODEL', 'fallback')}")
+        print(f"[START] task={task['task_id']} env=physio_support model={model_name}")
 
         while not done and step_number < task["max_steps"]:
             action, action_source = choose_action(client, observation)

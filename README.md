@@ -124,8 +124,8 @@ Set environment variables:
 
 ```powershell
 $env:HF_TOKEN="your_token"
-$env:OPENAI_BASE_URL="https://router.huggingface.co/v1"
-$env:OPENAI_MODEL="katanemo/Arch-Router-1.5B:hf-inference"
+$env:API_BASE_URL="https://router.huggingface.co/v1"
+$env:MODEL_NAME="katanemo/Arch-Router-1.5B:hf-inference"
 ```
 
 Run:
@@ -174,14 +174,14 @@ docker run --rm -e HF_TOKEN=$env:HF_TOKEN -e OPENAI_BASE_URL=$env:OPENAI_BASE_UR
 The container now serves the API on port `7860`. To expose it locally:
 
 ```powershell
-docker run --rm -p 7860:7860 -e HF_TOKEN=$env:HF_TOKEN -e OPENAI_BASE_URL=$env:OPENAI_BASE_URL -e OPENAI_MODEL=$env:OPENAI_MODEL physio-env
+docker run --rm -p 7860:7860 -e HF_TOKEN=$env:HF_TOKEN -e API_BASE_URL=$env:API_BASE_URL -e MODEL_NAME=$env:MODEL_NAME physio-env
 ```
 
 ## Environment Variables
 
 - `HF_TOKEN` or `OPENAI_API_KEY`
-- `OPENAI_BASE_URL`
-- `OPENAI_MODEL`
+- `API_BASE_URL`
+- `MODEL_NAME`
 
 ## Notes
 

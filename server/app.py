@@ -139,7 +139,11 @@ def run_inference(task_id: str) -> dict:
     }
 
 
-if __name__ == "__main__":
+def main() -> None:
     import uvicorn
 
     uvicorn.run("server.app:app", host="0.0.0.0", port=7860)
+
+
+if __name__ == "__main__":
+    main()
