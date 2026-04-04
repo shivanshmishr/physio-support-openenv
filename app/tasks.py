@@ -19,6 +19,8 @@ TASKS = [
         "serviceable_pincodes": ["400053", "400058"],
         "valid_slot": "2026-04-05 10:00",
         "max_steps": 6,
+        "max_total_reward": 1.2,
+        "success_score_threshold": 0.8,
     },
     {
         "task_id": "task_medium_reschedule",
@@ -39,6 +41,8 @@ TASKS = [
         "serviceable_pincodes": ["400053", "400058"],
         "valid_slot": "2026-04-05 09:30",
         "max_steps": 5,
+        "max_total_reward": 1.0,
+        "success_score_threshold": 0.8,
     },
     {
         "task_id": "task_hard_escalation",
@@ -58,5 +62,7 @@ TASKS = [
         "serviceable_pincodes": ["400053", "400058"],
         "valid_slot": None,
         "max_steps": 4,
+        "max_total_reward": 1.0,
+        "success_score_threshold": 0.8,
     },
 ]

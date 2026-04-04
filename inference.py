@@ -6,7 +6,6 @@ import os
 from openai import OpenAI
 
 from app.env import PhysioSupportEnv
-from app.grader import grade_episode
 from app.tasks import TASKS
 
 
@@ -157,6 +156,10 @@ def choose_action(client: OpenAI | None, observation: dict) -> tuple[dict, str]:
         raise RuntimeError(f"LLM action generation failed: {exc}") from exc
 
 
+def format_action_for_log(action: dict) -> str:
+    return json.dumps(action, separators=(",", ":"), sort_keys=True)
+
+
 def main() -> None:
     client = build_client()
     model_name = os.getenv("MODEL_NAME") or os.getenv("OPENAI_MODEL", "fallback")
@@ -165,7 +168,7 @@ def main() -> None:
         env = PhysioSupportEnv(task)
         observation = env.reset()
         total_reward = 0.0
-        rewards = []
+        rewards: list[float] = []
         step_number = 0
         done = False
 
@@ -176,16 +179,19 @@ def main() -> None:
             observation, reward, done, info = env.step(action)
             step_number += 1
             total_reward += reward
-            rewards.append(f"{reward:.2f}")
+            rewards.append(reward)
             error_text = info["error"] if info["error"] else "null"
             print(
-                f"[STEP] step={step_number} action={action.get('action')} "
-                f"slot={action.get('slot_id', 'null')} source={action_source} "
+                f"[STEP] step={step_number} action={format_action_for_log(action)} "
                 f"reward={reward:.2f} done={str(done).lower()} error={error_text}"
             )
 
-        score = grade_episode(total_reward, observation)
-        print(f"[END] success={str(score > 0).lower()} score={score:.2f} rewards={','.join(rewards)}")
+        max_total_reward = float(task.get("max_total_reward", 1.0))
+        score = total_reward / max_total_reward if max_total_reward > 0 else 0.0
+        score = min(max(score, 0.0), 1.0)
+        success = score >= float(task.get("success_score_threshold", 0.8))
+        rewards_str = ",".join(f"{reward:.2f}" for reward in rewards)
+        print(f"[END] success={str(success).lower()} steps={step_number} score={score:.2f} rewards={rewards_str}")
 
 
 if __name__ == "__main__":
