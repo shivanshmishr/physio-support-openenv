@@ -6,7 +6,7 @@ colorTo: yellow
 sdk: docker
 pinned: false
 license: mit
-short_description: OpenEnv-style physiotherapy support environment for booking, rescheduling, and escalation
+short_description: Physio support environment for booking and escalation
 ---
 
 # PhysioSupportEnv
