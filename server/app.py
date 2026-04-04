@@ -17,7 +17,7 @@ SESSIONS: dict[str, PhysioSupportEnv] = {}
 
 
 class ResetRequest(BaseModel):
-    task_id: str
+    task_id: str | None = None
 
 
 class StepRequest(BaseModel):
@@ -55,10 +55,11 @@ def list_tasks() -> dict:
 
 
 @app.post("/reset")
-def reset_env(request: ResetRequest) -> dict:
-    task = TASKS_BY_ID.get(request.task_id)
+def reset_env(request: ResetRequest | None = None) -> dict:
+    requested_task_id = request.task_id if request and request.task_id else TASKS[0]["task_id"]
+    task = TASKS_BY_ID.get(requested_task_id)
     if task is None:
-        raise HTTPException(status_code=404, detail=f"Unknown task_id: {request.task_id}")
+        raise HTTPException(status_code=404, detail=f"Unknown task_id: {requested_task_id}")
 
     session_id = str(uuid4())
     env = PhysioSupportEnv(task)
