@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from app.env import PhysioSupportEnv
 from app.tasks import TASKS
+from inference import build_client, choose_action
 
 
 app = FastAPI(title="PhysioSupportEnv", version="0.1.0")
@@ -87,6 +88,54 @@ def step_env(session_id: str, request: StepRequest) -> dict:
         "reward": reward,
         "done": done,
         "info": info,
+    }
+
+
+@app.post("/run_inference/{task_id}")
+def run_inference(task_id: str) -> dict:
+    task = TASKS_BY_ID.get(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail=f"Unknown task_id: {task_id}")
+
+    client = build_client()
+    if client is None:
+        raise HTTPException(status_code=500, detail="No API client configured. Set HF_TOKEN or OPENAI_API_KEY.")
+
+    env = PhysioSupportEnv(task)
+    observation = env.reset()
+    steps: list[dict] = []
+    total_reward = 0.0
+    done = False
+    step_number = 0
+
+    while not done and step_number < task["max_steps"]:
+        try:
+            action, action_source = choose_action(client, observation)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"LLM action generation failed: {exc}") from exc
+
+        observation, reward, done, info = env.step(action)
+        step_number += 1
+        total_reward += reward
+        steps.append(
+            {
+                "step": step_number,
+                "action": action,
+                "source": action_source,
+                "reward": reward,
+                "done": done,
+                "info": info,
+                "state": observation,
+            }
+        )
+
+    return {
+        "task_id": task_id,
+        "model": "llm",
+        "total_reward": total_reward,
+        "done": done,
+        "steps": steps,
+        "final_state": observation,
     }
 
 

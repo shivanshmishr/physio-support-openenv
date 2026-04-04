@@ -155,6 +155,7 @@ Useful endpoints:
 - `POST /reset`
 - `GET /state/{session_id}`
 - `POST /step/{session_id}`
+- `POST /run_inference/{task_id}`
 
 ## Run With Docker
 
