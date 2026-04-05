@@ -193,3 +193,6 @@ class PhysioSupportEnv:
             return -1.0, "Unsafe handling of urgent case", "Urgent task must be escalated"
 
         return -0.2, "Action does not match escalation flow order", "Invalid action for escalation task"
+
+    def close(self) -> None:
+        self.done = True

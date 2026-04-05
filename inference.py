@@ -78,8 +78,8 @@ def validate_action_payload(action: dict, observation: dict) -> dict:
 
 
 def build_client() -> OpenAI | None:
-    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("HF_TOKEN")
-    base_url = os.getenv("API_BASE_URL") or os.getenv("OPENAI_BASE_URL")
+    api_key = os.getenv("HF_TOKEN")
+    base_url = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
 
     if not api_key:
         return None
@@ -91,7 +91,7 @@ def build_client() -> OpenAI | None:
 
 
 def llm_action(client: OpenAI, observation: dict) -> dict:
-    model = os.getenv("MODEL_NAME") or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    model = os.getenv("MODEL_NAME", "gpt-4.1-mini")
     user_prompt = (
         "Choose the next action for this state.\n"
         "Return JSON only.\n"
@@ -148,7 +148,7 @@ def llm_action(client: OpenAI, observation: dict) -> dict:
 
 def choose_action(client: OpenAI | None, observation: dict) -> tuple[dict, str]:
     if client is None:
-        raise RuntimeError("No API client configured. Set HF_TOKEN or OPENAI_API_KEY before running inference.")
+        raise RuntimeError("No API client configured. Set HF_TOKEN before running inference.")
 
     try:
         return llm_action(client, observation), "llm"
@@ -162,7 +162,7 @@ def format_action_for_log(action: dict) -> str:
 
 def main() -> None:
     client = build_client()
-    model_name = os.getenv("MODEL_NAME") or os.getenv("OPENAI_MODEL", "fallback")
+    model_name = os.getenv("MODEL_NAME", "gpt-4.1-mini")
 
     for task in TASKS:
         env = PhysioSupportEnv(task)
@@ -171,27 +171,33 @@ def main() -> None:
         rewards: list[float] = []
         step_number = 0
         done = False
+        success = False
 
         print(f"[START] task={task['task_id']} env=physio_support model={model_name}")
+        try:
+            while not done and step_number < task["max_steps"]:
+                action, _ = choose_action(client, observation)
+                observation, reward, done, info = env.step(action)
+                step_number += 1
+                total_reward += reward
+                rewards.append(reward)
+                error_text = info["error"] if info["error"] else "null"
+                print(
+                    f"[STEP] step={step_number} action={format_action_for_log(action)} "
+                    f"reward={reward:.2f} done={str(done).lower()} error={error_text}"
+                )
 
-        while not done and step_number < task["max_steps"]:
-            action, action_source = choose_action(client, observation)
-            observation, reward, done, info = env.step(action)
-            step_number += 1
-            total_reward += reward
-            rewards.append(reward)
-            error_text = info["error"] if info["error"] else "null"
-            print(
-                f"[STEP] step={step_number} action={format_action_for_log(action)} "
-                f"reward={reward:.2f} done={str(done).lower()} error={error_text}"
-            )
-
-        max_total_reward = float(task.get("max_total_reward", 1.0))
-        score = total_reward / max_total_reward if max_total_reward > 0 else 0.0
-        score = min(max(score, 0.0), 1.0)
-        success = score >= float(task.get("success_score_threshold", 0.8))
-        rewards_str = ",".join(f"{reward:.2f}" for reward in rewards)
-        print(f"[END] success={str(success).lower()} steps={step_number} score={score:.2f} rewards={rewards_str}")
+            max_total_reward = float(task.get("max_total_reward", 1.0))
+            score = total_reward / max_total_reward if max_total_reward > 0 else 0.0
+            score = min(max(score, 0.0), 1.0)
+            success = score >= float(task.get("success_score_threshold", 0.8))
+        finally:
+            try:
+                env.close()
+            except Exception:
+                pass
+            rewards_str = ",".join(f"{reward:.2f}" for reward in rewards)
+            print(f"[END] success={str(success).lower()} steps={step_number} rewards={rewards_str}")
 
 
 if __name__ == "__main__":
