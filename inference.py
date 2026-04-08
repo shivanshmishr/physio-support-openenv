@@ -77,6 +77,21 @@ def validate_action_payload(action: dict, observation: dict) -> dict:
     return {"action": action_name}
 
 
+def fallback_action(observation: dict) -> dict:
+    allowed_actions = observation.get("allowed_actions", [])
+    if not allowed_actions:
+        return {"action": "confirm_completion"}
+
+    action_name = allowed_actions[0]
+    if action_name in {"book_slot", "reschedule_slot"}:
+        available_slots = observation.get("available_slots", [])
+        if not available_slots:
+            return {"action": "confirm_completion"}
+        return {"action": action_name, "slot_id": available_slots[0]}
+
+    return {"action": action_name}
+
+
 def build_client() -> OpenAI | None:
     api_key = os.getenv("HF_TOKEN")
     base_url = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
@@ -148,12 +163,12 @@ def llm_action(client: OpenAI, observation: dict) -> dict:
 
 def choose_action(client: OpenAI | None, observation: dict) -> tuple[dict, str]:
     if client is None:
-        raise RuntimeError("No API client configured. Set HF_TOKEN before running inference.")
+        return fallback_action(observation), "fallback"
 
     try:
         return llm_action(client, observation), "llm"
     except Exception as exc:
-        raise RuntimeError(f"LLM action generation failed: {exc}") from exc
+        return fallback_action(observation), "fallback"
 
 
 def format_action_for_log(action: dict) -> str:
