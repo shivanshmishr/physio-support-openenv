@@ -1,12 +1,13 @@
-_EPS = 1e-6
+_MIN_SCORE = 0.1
+_MAX_SCORE = 0.9
 
 
 def _open_unit_interval(value: float) -> float:
-    """Clamp score to the open interval (0, 1)."""
-    if value <= _EPS:
-        return _EPS
-    if value >= 1.0 - _EPS:
-        return 1.0 - _EPS
+    """Clamp score to a conservative safe band within (0, 1)."""
+    if value <= _MIN_SCORE:
+        return _MIN_SCORE
+    if value >= _MAX_SCORE:
+        return _MAX_SCORE
     return value
 
 

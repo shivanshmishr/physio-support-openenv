@@ -6,8 +6,20 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from app.env import PhysioSupportEnv
+from app.grader import grade_episode
 from app.tasks import TASKS
 from inference import build_client, choose_action
+
+_MIN_SCORE = 0.1
+_MAX_SCORE = 0.9
+
+
+def clamp_score(value: float) -> float:
+    if value <= _MIN_SCORE:
+        return _MIN_SCORE
+    if value >= _MAX_SCORE:
+        return _MAX_SCORE
+    return value
 
 
 app = FastAPI(title="PhysioSupportEnv", version="0.1.0")
@@ -130,9 +142,13 @@ def run_inference(task_id: str) -> dict:
             }
         )
 
+    score = clamp_score(float(grade_episode(total_reward, observation)))
+
     return {
         "task_id": task_id,
         "model": "llm",
+        "score": score,
+        "success": score >= float(task.get("success_score_threshold", 0.8)),
         "total_reward": total_reward,
         "done": done,
         "steps": steps,

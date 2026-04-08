@@ -6,6 +6,7 @@ import os
 from openai import OpenAI
 
 from app.env import PhysioSupportEnv
+from app.grader import grade_episode
 from app.tasks import TASKS
 
 
@@ -35,15 +36,16 @@ Rules:
   flow_progress 1 -> confirm_completion
 """.strip()
 
-_EPS = 1e-6
+_MIN_SCORE = 0.1
+_MAX_SCORE = 0.9
 
 
 def open_unit_interval(value: float) -> float:
-    """Clamp score to the open interval (0, 1)."""
-    if value <= _EPS:
-        return _EPS
-    if value >= 1.0 - _EPS:
-        return 1.0 - _EPS
+    """Clamp score to a conservative safe band within (0, 1)."""
+    if value <= _MIN_SCORE:
+        return _MIN_SCORE
+    if value >= _MAX_SCORE:
+        return _MAX_SCORE
     return value
 
 
@@ -213,9 +215,8 @@ def main() -> None:
                     f"reward={reward:.2f} done={str(done).lower()} error={error_text}"
                 )
 
-            max_total_reward = float(task.get("max_total_reward", 1.0))
-            score = total_reward / max_total_reward if max_total_reward > 0 else 0.0
-            score = open_unit_interval(score)
+            score = grade_episode(total_reward, observation)
+            score = open_unit_interval(float(score))
             success = score >= float(task.get("success_score_threshold", 0.8))
         finally:
             try:
@@ -223,7 +224,14 @@ def main() -> None:
             except Exception:
                 pass
             rewards_str = ",".join(f"{reward:.2f}" for reward in rewards)
-            print(f"[END] success={str(success).lower()} steps={step_number} rewards={rewards_str}")
+            print(
+                "[END] "
+                f"success={str(success).lower()} "
+                f"score={score:.6f} "
+                f"total_reward={total_reward:.6f} "
+                f"steps={step_number} "
+                f"rewards={rewards_str}"
+            )
 
 
 if __name__ == "__main__":

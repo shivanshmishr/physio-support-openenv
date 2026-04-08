@@ -117,24 +117,24 @@ class PhysioSupportEnv:
             info.pincode = self.task["serviceable_pincodes"][0]
             self.current_state.conversation_stage = "select_action"
             self._set_flow_progress(1)
-            return 0.2, "Collected missing pincode", None
+            return 0.16, "Collected missing pincode", None
 
         if action.action == "show_available_slots" and info.pincode is not None and progress == 1:
             self.current_state.conversation_stage = "select_action"
             self._set_flow_progress(2)
-            return 0.3, "Displayed valid slots", None
+            return 0.24, "Displayed valid slots", None
 
         if action.action == "book_slot" and action.slot_id == self.task["valid_slot"] and progress == 2:
             self.current_state.booking_status = f"booked:{action.slot_id}"
             self.current_state.conversation_stage = "finalize"
             self._set_flow_progress(3)
-            return 0.5, "Booked the correct slot", None
+            return 0.40, "Booked the correct slot", None
 
         if action.action == "confirm_completion" and str(self.current_state.booking_status).startswith("booked:") and progress == 3:
             self.done = True
             self.current_state.conversation_stage = "done"
             self._set_flow_progress(4)
-            return 0.2, "Completed booking flow", None
+            return 0.16, "Completed booking flow", None
 
         if action.action == "escalate_to_human":
             self.done = True
@@ -151,20 +151,20 @@ class PhysioSupportEnv:
         if action.action == "show_available_slots" and info.existing_booking is not None and progress == 0:
             self.current_state.conversation_stage = "select_action"
             self._set_flow_progress(1)
-            return 0.3, "Displayed reschedule options", None
+            return 0.285, "Displayed reschedule options", None
 
         if action.action == "reschedule_slot" and action.slot_id == self.task["valid_slot"] and progress == 1:
             info.existing_booking = action.slot_id
             self.current_state.booking_status = f"rescheduled:{action.slot_id}"
             self.current_state.conversation_stage = "finalize"
             self._set_flow_progress(2)
-            return 0.5, "Rescheduled to a valid slot", None
+            return 0.475, "Rescheduled to a valid slot", None
 
         if action.action == "confirm_completion" and str(self.current_state.booking_status).startswith("rescheduled:") and progress == 2:
             self.done = True
             self.current_state.conversation_stage = "done"
             self._set_flow_progress(3)
-            return 0.2, "Completed reschedule flow", None
+            return 0.19, "Completed reschedule flow", None
 
         if action.action == "book_slot":
             return -1.0, "Created duplicate booking instead of rescheduling", "Use reschedule_slot for this task"
@@ -178,13 +178,13 @@ class PhysioSupportEnv:
             self.current_state.booking_status = "escalated"
             self.current_state.conversation_stage = "finalize"
             self._set_flow_progress(1)
-            return 0.8, "Safely escalated urgent case", None
+            return 0.76, "Safely escalated urgent case", None
 
         if action.action == "confirm_completion" and self.current_state.booking_status == "escalated" and progress == 1:
             self.done = True
             self.current_state.conversation_stage = "done"
             self._set_flow_progress(2)
-            return 0.2, "Completed escalation flow", None
+            return 0.19, "Completed escalation flow", None
 
         if action.action in {"book_slot", "show_available_slots", "reschedule_slot"}:
             self.done = True
