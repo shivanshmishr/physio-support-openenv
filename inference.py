@@ -35,6 +35,17 @@ Rules:
   flow_progress 1 -> confirm_completion
 """.strip()
 
+_EPS = 1e-6
+
+
+def open_unit_interval(value: float) -> float:
+    """Clamp score to the open interval (0, 1)."""
+    if value <= _EPS:
+        return _EPS
+    if value >= 1.0 - _EPS:
+        return 1.0 - _EPS
+    return value
+
 
 def extract_json_object(content: str) -> dict:
     cleaned = content.strip()
@@ -204,7 +215,7 @@ def main() -> None:
 
             max_total_reward = float(task.get("max_total_reward", 1.0))
             score = total_reward / max_total_reward if max_total_reward > 0 else 0.0
-            score = min(max(score, 0.0), 1.0)
+            score = open_unit_interval(score)
             success = score >= float(task.get("success_score_threshold", 0.8))
         finally:
             try:
