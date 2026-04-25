@@ -44,13 +44,13 @@ class HuggingFaceModelPolicy:
                 "Install requirements with transformers/torch/peft first."
             ) from exc
 
-        tokenizer = AutoTokenizer.from_pretrained(self.base_model)
+        tokenizer = AutoTokenizer.from_pretrained(self.base_model, trust_remote_code=True)
         if tokenizer.pad_token is None and tokenizer.eos_token is not None:
             tokenizer.pad_token = tokenizer.eos_token
 
-        model_kwargs = {}
+        model_kwargs = {"trust_remote_code": True}
         if torch.cuda.is_available():
-            model_kwargs["torch_dtype"] = torch.bfloat16
+            model_kwargs["dtype"] = torch.bfloat16
             model_kwargs["device_map"] = "auto"
 
         model = AutoModelForCausalLM.from_pretrained(self.base_model, **model_kwargs)
@@ -75,10 +75,11 @@ class HuggingFaceModelPolicy:
         generation_kwargs = {
             "max_new_tokens": self.max_new_tokens,
             "do_sample": self.temperature > 0,
-            "temperature": max(self.temperature, 1e-5),
             "pad_token_id": self.tokenizer.pad_token_id,
             "eos_token_id": self.tokenizer.eos_token_id,
         }
+        if self.temperature > 0:
+            generation_kwargs["temperature"] = self.temperature
 
         with torch.no_grad():
             if getattr(self.tokenizer, "chat_template", None):

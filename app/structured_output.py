@@ -1,26 +1,64 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import get_args
 
 from app.models import CareCoordinationOutput, NextActionName
 
 _ALL_ACTIONS = set(get_args(NextActionName))
+_THINK_PATTERN = re.compile(r"<think>.*?</think>", flags=re.IGNORECASE | re.DOTALL)
 
 
 def extract_json_object(content: str) -> dict:
-    cleaned = content.strip()
+    cleaned = _THINK_PATTERN.sub("", content).strip()
 
     if cleaned.startswith("```"):
         lines = [line for line in cleaned.splitlines() if not line.strip().startswith("```")]
         cleaned = "\n".join(lines).strip()
 
-    start = cleaned.find("{")
-    end = cleaned.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        raise ValueError(f"Model response did not contain a JSON object: {content}")
+    extracted = _extract_first_json_object(cleaned)
+    if extracted is None:
+        raise ValueError(f"Model response did not contain a valid JSON object: {content}")
 
-    return json.loads(cleaned[start : end + 1])
+    return extracted
+
+
+def _extract_first_json_object(content: str) -> dict | None:
+    for start_index, char in enumerate(content):
+        if char != "{":
+            continue
+
+        depth = 0
+        in_string = False
+        escape = False
+
+        for end_index in range(start_index, len(content)):
+            current = content[end_index]
+
+            if in_string:
+                if escape:
+                    escape = False
+                elif current == "\\":
+                    escape = True
+                elif current == '"':
+                    in_string = False
+                continue
+
+            if current == '"':
+                in_string = True
+            elif current == "{":
+                depth += 1
+            elif current == "}":
+                depth -= 1
+                if depth == 0:
+                    candidate = content[start_index : end_index + 1]
+                    try:
+                        return json.loads(candidate)
+                    except json.JSONDecodeError:
+                        break
+
+    return None
 
 
 def validate_submission_payload(payload: dict, observation: dict) -> dict:

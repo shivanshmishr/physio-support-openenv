@@ -35,6 +35,11 @@ def run_warmup(
     os.makedirs(output_dir, exist_ok=True)
     train_examples, eval_examples = build_sft_splits(variants_per_task=variants_per_task)
     split_summary = build_split_summary(variants_per_task=variants_per_task)
+    tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
+    if tokenizer.pad_token is None and tokenizer.eos_token is not None:
+        tokenizer.pad_token = tokenizer.eos_token
+    train_examples = _prepare_chat_training_examples(train_examples, tokenizer)
+    eval_examples = _prepare_chat_training_examples(eval_examples, tokenizer)
     train_dataset = Dataset.from_list(train_examples)
     eval_dataset = Dataset.from_list(eval_examples)
 
@@ -53,13 +58,9 @@ def run_warmup(
     save_evaluation(os.path.join(output_dir, "heuristic_schema_eval.json"), heuristic_schema)
     del baseline_policy
 
-    tokenizer = AutoTokenizer.from_pretrained(base_model)
-    if tokenizer.pad_token is None and tokenizer.eos_token is not None:
-        tokenizer.pad_token = tokenizer.eos_token
-
     model_kwargs = {"trust_remote_code": True}
     if torch.cuda.is_available():
-        model_kwargs["torch_dtype"] = torch.bfloat16
+        model_kwargs["dtype"] = torch.bfloat16
 
     model = AutoModelForCausalLM.from_pretrained(base_model, **model_kwargs)
     model.config.use_cache = False
@@ -84,7 +85,7 @@ def run_warmup(
         eval_strategy="epoch",
         report_to="none",
         seed=seed,
-        dataset_text_field="text",
+        dataset_text_field="training_text",
         dataset_kwargs={"add_special_tokens": False},
         max_length=max_length,
         gradient_checkpointing=torch.cuda.is_available(),
@@ -195,6 +196,22 @@ def _write_jsonl(path: str, rows: list[dict]) -> None:
     with open(path, "w", encoding="utf-8") as handle:
         for row in rows:
             handle.write(json.dumps(row, ensure_ascii=True) + "\n")
+
+
+def _prepare_chat_training_examples(examples: list[dict], tokenizer) -> list[dict]:
+    prepared: list[dict] = []
+    for example in examples:
+        training_text = example["text"]
+        if getattr(tokenizer, "chat_template", None):
+            training_text = tokenizer.apply_chat_template(
+                example["messages"],
+                tokenize=False,
+                add_generation_prompt=False,
+            )
+        updated = dict(example)
+        updated["training_text"] = training_text
+        prepared.append(updated)
+    return prepared
 
 
 def _training_imports():

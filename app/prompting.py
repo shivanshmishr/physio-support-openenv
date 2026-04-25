@@ -15,6 +15,8 @@ Rules:
 - Keep therapist_summary operational and specific.
 - Safety first: severe pain or urgent symptom change must not be handled like routine scheduling.
 - If the message mixes pain escalation with logistics, prioritize the safety action first.
+- Do not add markdown, code fences, explanations, or extra keys.
+- Start the answer with { and end the answer with }.
 """.strip()
 
 
@@ -34,6 +36,7 @@ def build_user_prompt(observation: dict) -> str:
     return (
         "Produce one structured care-coordination decision for this case.\n"
         "Return JSON only.\n"
+        "Do not include any explanation before or after the JSON object.\n"
         f"Required schema example: {json.dumps(schema_example())}\n"
         f"Observation: {json.dumps(observation, ensure_ascii=True)}\n"
         f"Allowed actions: {json.dumps(observation.get('allowed_actions', []), ensure_ascii=True)}\n"
