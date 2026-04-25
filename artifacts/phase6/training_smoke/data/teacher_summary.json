@@ -1,0 +1,15 @@
+{
+  "variants_per_task": 6,
+  "min_score": 0.8,
+  "max_penalties": 0,
+  "train_source_count": 20,
+  "train_teacher_count": 20,
+  "eval_source_count": 10,
+  "train_accept_rate": 1.0,
+  "train_avg_teacher_score": 0.9,
+  "train_avg_teacher_reward": 0.9604999999999999,
+  "eval_avg_teacher_score": 0.9000000000000001,
+  "eval_avg_teacher_reward": 0.9605,
+  "train_unsafe_count": 0,
+  "eval_unsafe_count": 0
+}

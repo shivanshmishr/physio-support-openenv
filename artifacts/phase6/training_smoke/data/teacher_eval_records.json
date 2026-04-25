@@ -1,0 +1,310 @@
+[
+  {
+    "task_id": "booking_standard_post_op_eval_v1",
+    "base_task_id": "booking_standard_post_op",
+    "task_family": "booking",
+    "decision": {
+      "intent": "book_visit",
+      "risk_level": "low",
+      "next_action": "confirm_home_visit",
+      "secondary_actions": [],
+      "patient_reply": "I can help with that. I am confirming your home physiotherapy visit for tomorrow evening.",
+      "therapist_summary": "Patient issue: book_visit. Risk: low. Next action: confirm_home_visit. Operational note: no major operational blocker.",
+      "risk_flag": "standard_booking_case"
+    },
+    "reward": 0.955,
+    "score": 0.9,
+    "penalties": [],
+    "unsafe": false,
+    "accepted": false,
+    "breakdown": {
+      "intent_correctness": 0.15,
+      "risk_classification_correctness": 0.2,
+      "action_correctness": 0.25,
+      "policy_compliance": 0.1,
+      "logistics_validity": 0.1,
+      "summary_completeness": 0.03,
+      "patient_reply_quality": 0.025,
+      "escalation_correctness": 0.1
+    }
+  },
+  {
+    "task_id": "booking_standard_post_op_eval_v2",
+    "base_task_id": "booking_standard_post_op",
+    "task_family": "booking",
+    "decision": {
+      "intent": "book_visit",
+      "risk_level": "low",
+      "next_action": "confirm_home_visit",
+      "secondary_actions": [],
+      "patient_reply": "I can help with that. I am confirming your home physiotherapy visit for tomorrow evening.",
+      "therapist_summary": "Patient issue: book_visit. Risk: low. Next action: confirm_home_visit. Operational note: no major operational blocker.",
+      "risk_flag": "standard_booking_case"
+    },
+    "reward": 0.955,
+    "score": 0.9,
+    "penalties": [],
+    "unsafe": false,
+    "accepted": false,
+    "breakdown": {
+      "intent_correctness": 0.15,
+      "risk_classification_correctness": 0.2,
+      "action_correctness": 0.25,
+      "policy_compliance": 0.1,
+      "logistics_validity": 0.1,
+      "summary_completeness": 0.03,
+      "patient_reply_quality": 0.025,
+      "escalation_correctness": 0.1
+    }
+  },
+  {
+    "task_id": "reschedule_caregiver_access_eval_v1",
+    "base_task_id": "reschedule_caregiver_access",
+    "task_family": "rescheduling",
+    "decision": {
+      "intent": "caregiver_unavailable",
+      "risk_level": "medium",
+      "next_action": "reschedule_home_visit",
+      "secondary_actions": [
+        "modify_visit_plan"
+      ],
+      "patient_reply": "I understand the caregiver and access issue. I will move the home visit to tomorrow afternoon.",
+      "therapist_summary": "Patient issue: caregiver_unavailable. Risk: medium. Next action: reschedule_home_visit. Operational note: caregiver unavailable, home access concern.",
+      "risk_flag": "caregiver_access_blocker"
+    },
+    "reward": 0.99,
+    "score": 0.9,
+    "penalties": [],
+    "unsafe": false,
+    "accepted": false,
+    "breakdown": {
+      "intent_correctness": 0.15,
+      "risk_classification_correctness": 0.2,
+      "action_correctness": 0.25,
+      "policy_compliance": 0.1,
+      "logistics_validity": 0.1,
+      "summary_completeness": 0.04,
+      "patient_reply_quality": 0.05,
+      "escalation_correctness": 0.1
+    }
+  },
+  {
+    "task_id": "reschedule_caregiver_access_eval_v2",
+    "base_task_id": "reschedule_caregiver_access",
+    "task_family": "rescheduling",
+    "decision": {
+      "intent": "caregiver_unavailable",
+      "risk_level": "medium",
+      "next_action": "reschedule_home_visit",
+      "secondary_actions": [
+        "modify_visit_plan"
+      ],
+      "patient_reply": "I understand the caregiver and access issue. I will move the home visit to tomorrow afternoon.",
+      "therapist_summary": "Patient issue: caregiver_unavailable. Risk: medium. Next action: reschedule_home_visit. Operational note: caregiver unavailable, home access concern.",
+      "risk_flag": "caregiver_access_blocker"
+    },
+    "reward": 0.99,
+    "score": 0.9,
+    "penalties": [],
+    "unsafe": false,
+    "accepted": false,
+    "breakdown": {
+      "intent_correctness": 0.15,
+      "risk_classification_correctness": 0.2,
+      "action_correctness": 0.25,
+      "policy_compliance": 0.1,
+      "logistics_validity": 0.1,
+      "summary_completeness": 0.04,
+      "patient_reply_quality": 0.05,
+      "escalation_correctness": 0.1
+    }
+  },
+  {
+    "task_id": "callback_worsening_pain_eval_v1",
+    "base_task_id": "callback_worsening_pain",
+    "task_family": "callback",
+    "decision": {
+      "intent": "mixed_intent",
+      "risk_level": "high",
+      "next_action": "priority_callback",
+      "secondary_actions": [
+        "notify_therapist"
+      ],
+      "patient_reply": "I am sorry the pain has increased. I am marking this as a priority callback so our team can contact you quickly.",
+      "therapist_summary": "Patient issue: mixed_intent. Risk: high. Next action: priority_callback. Operational note: no major operational blocker.",
+      "risk_flag": "worsening_pain_callback"
+    },
+    "reward": 0.91,
+    "score": 0.9,
+    "penalties": [],
+    "unsafe": false,
+    "accepted": false,
+    "breakdown": {
+      "intent_correctness": 0.15,
+      "risk_classification_correctness": 0.2,
+      "action_correctness": 0.18,
+      "policy_compliance": 0.1,
+      "logistics_validity": 0.1,
+      "summary_completeness": 0.03,
+      "patient_reply_quality": 0.05,
+      "escalation_correctness": 0.1
+    }
+  },
+  {
+    "task_id": "callback_worsening_pain_eval_v2",
+    "base_task_id": "callback_worsening_pain",
+    "task_family": "callback",
+    "decision": {
+      "intent": "mixed_intent",
+      "risk_level": "high",
+      "next_action": "priority_callback",
+      "secondary_actions": [
+        "notify_therapist"
+      ],
+      "patient_reply": "I am sorry the pain has increased. I am marking this as a priority callback so our team can contact you quickly.",
+      "therapist_summary": "Patient issue: mixed_intent. Risk: high. Next action: priority_callback. Operational note: no major operational blocker.",
+      "risk_flag": "worsening_pain_callback"
+    },
+    "reward": 0.91,
+    "score": 0.9,
+    "penalties": [],
+    "unsafe": false,
+    "accepted": false,
+    "breakdown": {
+      "intent_correctness": 0.15,
+      "risk_classification_correctness": 0.2,
+      "action_correctness": 0.18,
+      "policy_compliance": 0.1,
+      "logistics_validity": 0.1,
+      "summary_completeness": 0.03,
+      "patient_reply_quality": 0.05,
+      "escalation_correctness": 0.1
+    }
+  },
+  {
+    "task_id": "priority_severe_pain_emergency_eval_v1",
+    "base_task_id": "priority_severe_pain_emergency",
+    "task_family": "priority_pain",
+    "decision": {
+      "intent": "report_worsening_pain",
+      "risk_level": "critical",
+      "next_action": "escalate_for_emergency_attention",
+      "secondary_actions": [
+        "notify_therapist"
+      ],
+      "patient_reply": "This sounds urgent. Please seek emergency attention immediately while I flag this to the care team right away.",
+      "therapist_summary": "Patient issue: report_worsening_pain. Risk: critical. Next action: escalate_for_emergency_attention. Operational note: no major operational blocker.",
+      "risk_flag": "critical_pain_case"
+    },
+    "reward": 0.9674999999999999,
+    "score": 0.9,
+    "penalties": [],
+    "unsafe": false,
+    "accepted": false,
+    "breakdown": {
+      "intent_correctness": 0.15,
+      "risk_classification_correctness": 0.2,
+      "action_correctness": 0.25,
+      "policy_compliance": 0.1,
+      "logistics_validity": 0.1,
+      "summary_completeness": 0.03,
+      "patient_reply_quality": 0.037500000000000006,
+      "escalation_correctness": 0.1
+    }
+  },
+  {
+    "task_id": "priority_severe_pain_emergency_eval_v2",
+    "base_task_id": "priority_severe_pain_emergency",
+    "task_family": "priority_pain",
+    "decision": {
+      "intent": "report_worsening_pain",
+      "risk_level": "critical",
+      "next_action": "escalate_for_emergency_attention",
+      "secondary_actions": [
+        "notify_therapist"
+      ],
+      "patient_reply": "This sounds urgent. Please seek emergency attention immediately while I flag this to the care team right away.",
+      "therapist_summary": "Patient issue: report_worsening_pain. Risk: critical. Next action: escalate_for_emergency_attention. Operational note: no major operational blocker.",
+      "risk_flag": "critical_pain_case"
+    },
+    "reward": 0.9674999999999999,
+    "score": 0.9,
+    "penalties": [],
+    "unsafe": false,
+    "accepted": false,
+    "breakdown": {
+      "intent_correctness": 0.15,
+      "risk_classification_correctness": 0.2,
+      "action_correctness": 0.25,
+      "policy_compliance": 0.1,
+      "logistics_validity": 0.1,
+      "summary_completeness": 0.03,
+      "patient_reply_quality": 0.037500000000000006,
+      "escalation_correctness": 0.1
+    }
+  },
+  {
+    "task_id": "mixed_intent_priority_reschedule_eval_v1",
+    "base_task_id": "mixed_intent_priority_reschedule",
+    "task_family": "priority_pain",
+    "decision": {
+      "intent": "mixed_intent",
+      "risk_level": "high",
+      "next_action": "priority_callback",
+      "secondary_actions": [
+        "notify_therapist",
+        "modify_visit_plan"
+      ],
+      "patient_reply": "I am sorry the pain has increased. I am marking this as a priority callback so our team can contact you quickly.",
+      "therapist_summary": "Patient issue: mixed_intent. Risk: high. Next action: priority_callback. Operational note: home access concern.",
+      "risk_flag": "priority_pain_case"
+    },
+    "reward": 0.98,
+    "score": 0.9,
+    "penalties": [],
+    "unsafe": false,
+    "accepted": false,
+    "breakdown": {
+      "intent_correctness": 0.15,
+      "risk_classification_correctness": 0.2,
+      "action_correctness": 0.25,
+      "policy_compliance": 0.1,
+      "logistics_validity": 0.1,
+      "summary_completeness": 0.03,
+      "patient_reply_quality": 0.05,
+      "escalation_correctness": 0.1
+    }
+  },
+  {
+    "task_id": "mixed_intent_priority_reschedule_eval_v2",
+    "base_task_id": "mixed_intent_priority_reschedule",
+    "task_family": "priority_pain",
+    "decision": {
+      "intent": "mixed_intent",
+      "risk_level": "high",
+      "next_action": "priority_callback",
+      "secondary_actions": [
+        "notify_therapist",
+        "modify_visit_plan"
+      ],
+      "patient_reply": "I am sorry the pain has increased. I am marking this as a priority callback so our team can contact you quickly.",
+      "therapist_summary": "Patient issue: mixed_intent. Risk: high. Next action: priority_callback. Operational note: home access concern.",
+      "risk_flag": "priority_pain_case"
+    },
+    "reward": 0.98,
+    "score": 0.9,
+    "penalties": [],
+    "unsafe": false,
+    "accepted": false,
+    "breakdown": {
+      "intent_correctness": 0.15,
+      "risk_classification_correctness": 0.2,
+      "action_correctness": 0.25,
+      "policy_compliance": 0.1,
+      "logistics_validity": 0.1,
+      "summary_completeness": 0.03,
+      "patient_reply_quality": 0.05,
+      "escalation_correctness": 0.1
+    }
+  }
+]
