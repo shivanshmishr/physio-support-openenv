@@ -22,6 +22,7 @@ dependencies = [
 server = "server.app:main"
 train-scaffold = "train_scaffold:main"
 evaluate-policy = "evaluate:main"
+phase6-train = "phase6_train:main"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
