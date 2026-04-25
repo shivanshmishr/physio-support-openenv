@@ -217,6 +217,36 @@ Evaluate a trained adapter:
 python evaluate.py --policy trained --base-model Qwen/Qwen2.5-0.5B-Instruct --adapter-path artifacts/training --split eval --variants-per-task 8
 ```
 
+## Phase 6 Results
+
+The current best result comes from the successful HF Job `69ecb239d70108f37acde5a1`, reconstructed locally under [artifacts/phase6/final_results](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/artifacts/phase6/final_results).
+
+Held-out eval comparison on 10 cases:
+
+| Policy | Avg Reward | Avg Score | Risk Acc | Action Acc | Priority Recall | Unsafe Rate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Baseline Qwen2.5-0.5B | `0.7003` | `0.5635` | `0.70` | `0.60` | `0.50` | `0.00` |
+| Trained Phase 6 Adapter | `0.7958` | `0.7598` | `1.00` | `0.70` | `1.00` | `0.00` |
+| Heuristic Teacher | `0.9605` | `0.9000` | `1.00` | `0.80` | `1.00` | `0.00` |
+
+Main improvements from baseline to trained adapter:
+
+- average reward: `+0.0955`
+- average score: `+0.1963`
+- risk accuracy: `+0.30`
+- action accuracy: `+0.10`
+- priority pain recall: `+0.50`
+- unsafe action rate stayed at `0.00`
+
+Committed result files:
+
+- [training_summary.json](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/artifacts/phase6/final_results/training_summary.json)
+- [baseline_eval.json](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/artifacts/phase6/final_results/baseline_eval.json)
+- [trained_eval.json](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/artifacts/phase6/final_results/trained_eval.json)
+- [heuristic_eval.json](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/artifacts/phase6/final_results/heuristic_eval.json)
+- [reward_comparison.svg](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/artifacts/phase6/final_results/reward_comparison.svg)
+- [score_comparison.svg](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/artifacts/phase6/final_results/score_comparison.svg)
+
 ## API
 
 Start the server:
@@ -238,7 +268,7 @@ Useful endpoints:
 
 ## Current Status
 
-Phase 2 and a real LoRA fine-tuning path are now wired:
+The environment, evaluation path, and a working Phase 6 training result are now wired:
 
 - structured task observations
 - PRD-aligned response schema
@@ -248,6 +278,7 @@ Phase 2 and a real LoRA fine-tuning path are now wired:
 - runnable `TRL` + `PEFT` LoRA training scaffold
 - shared evaluation metrics for reward, intent, risk, action, callback, priority recall, and unsafe rate
 - base-model vs trained-adapter evaluation with the same artifact format
-- SVG reward and loss curve export
+- committed Phase 6 final result bundle under `artifacts/phase6/final_results`
+- SVG comparison plots for the final submitted metrics
 
-Next build steps are dependency installation, an actual fine-tuning run to produce committed artifacts, PNG plot export for submission assets, and HF Space packaging.
+Next build steps are adapter persistence, PNG export for submission assets, and HF Space packaging.

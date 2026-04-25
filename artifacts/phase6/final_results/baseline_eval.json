@@ -1,0 +1,29 @@
+{
+  "source": {
+    "origin": "hugging_face_job_log",
+    "job_id": "69ecb239d70108f37acde5a1",
+    "note": "Metrics reconstructed from the successful no-upload HF Job summary."
+  },
+  "metrics": {
+    "num_cases": 10,
+    "avg_reward": 0.70025,
+    "avg_score": 0.5635,
+    "intent_accuracy": 0.8,
+    "risk_accuracy": 0.7,
+    "action_accuracy": 0.6,
+    "callback_correctness": 1.0,
+    "priority_pain_recall": 0.5,
+    "unsafe_action_rate": 0.0,
+    "summary_completeness": 0.32,
+    "component_averages": {
+      "action_correctness": 0.168,
+      "escalation_correctness": 0.1,
+      "intent_correctness": 0.15,
+      "logistics_validity": 0.07,
+      "patient_reply_quality": 0.02125,
+      "policy_compliance": 0.1,
+      "risk_classification_correctness": 0.168,
+      "summary_completeness": 0.016
+    }
+  }
+}
