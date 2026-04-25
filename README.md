@@ -1,116 +1,144 @@
 ---
 title: Physio Support Openenv
-emoji: 💻
+emoji: 🏥
 colorFrom: gray
 colorTo: yellow
 sdk: docker
 pinned: false
 license: mit
-short_description: Physio support environment for booking and escalation
+short_description: Home physiotherapy care-coordination environment with structured reward scoring
 ---
 
 # PhysioSupportEnv
 
-PhysioSupportEnv is a small Python environment for a physiotherapy support agent workflow.
+PhysioSupportEnv is an OpenEnv-style RL environment for home physiotherapy care coordination. The agent reads a realistic patient support case, produces one structured care decision, and gets a deterministic reward based on safety, operational correctness, and communication quality.
 
-It simulates three real-world tasks:
+## What The Environment Trains
 
-- new home physiotherapy booking
-- rescheduling an existing booking
-- escalation of urgent or unsafe cases to human support
+- booking correctness
+- rescheduling correctness
+- callback handling for worsening pain
+- priority escalation for severe pain
+- concise patient communication with useful therapist summaries
 
-## Problem Statement
+## Current Task Families
 
-The agent receives a structured support state and must choose the next correct action in the workflow. The environment validates the action, updates the state, and returns a reward.
+- `booking`
+- `rescheduling`
+- `callback`
+- `priority_pain`
 
-This project is designed around a simple OpenEnv-style interface:
+The repo currently includes five seeded cases covering standard booking, caregiver and access blockers, worsening-pain callbacks, critical pain escalation, and a mixed-intent pain plus reschedule case.
+
+## OpenEnv Interface
 
 - `reset()`
 - `state()`
 - `step(action)`
 
-## Tasks
+Each episode is one patient-care coordination case. The current Phase 2 setup evaluates one structured decision per episode.
 
-### 1. New Booking
-
-The patient wants a home physiotherapy session but has not provided a pincode yet.
-
-Expected flow:
-
-- `ask_pincode`
-- `show_available_slots`
-- `book_slot`
-- `confirm_completion`
-
-### 2. Reschedule
-
-The patient already has a booking and wants to move it to another available slot.
-
-Expected flow:
-
-- `show_available_slots`
-- `reschedule_slot`
-- `confirm_completion`
-
-### 3. Escalation
-
-The request is urgent or unsafe and should not be auto-booked.
-
-Expected flow:
-
-- `escalate_to_human`
-- `confirm_completion`
-
-## Observation Format
+## Observation Schema
 
 Each state includes:
 
 - `task_id`
-- `task_type`
+- `task_family`
 - `patient_message`
-- `known_info`
-- `available_slots`
-- `conversation_stage`
-- `steps_taken`
-- `booking_status`
-- `flow_progress`
+- `patient_history_summary`
+- `care_plan_summary`
+- `visit_context`
+- `operational_constraints`
 - `allowed_actions`
+- `policy_constraints`
+- `steps_taken`
+- `episode_status`
 
-## Action Space
+## Output Schema
+
+The model must return JSON in this shape:
+
+```json
+{
+  "intent": "mixed_intent",
+  "risk_level": "high",
+  "next_action": "priority_callback",
+  "secondary_actions": ["notify_therapist"],
+  "patient_reply": "I'm sorry the pain has increased. I'm marking this as a priority callback so our team can contact you quickly.",
+  "therapist_summary": "Patient reports worsening pain before the next visit. Priority callback triggered and therapist notified.",
+  "risk_flag": "priority_pain_case"
+}
+```
+
+## Supported Labels
+
+Supported intents:
+
+- `book_visit`
+- `reschedule_visit`
+- `cancel_visit`
+- `request_callback`
+- `report_worsening_pain`
+- `ask_general_info`
+- `caregiver_unavailable`
+- `home_access_issue`
+- `mixed_intent`
 
 Supported actions:
 
-- `ask_pincode`
-- `ask_time_preference`
-- `show_available_slots`
-- `book_slot`
-- `reschedule_slot`
-- `cancel_booking`
-- `escalate_to_human`
-- `confirm_completion`
+- `confirm_home_visit`
+- `reschedule_home_visit`
+- `request_more_information`
+- `schedule_callback`
+- `priority_callback`
+- `notify_therapist`
+- `convert_to_remote_checkin`
+- `modify_visit_plan`
+- `escalate_for_clinical_review`
+- `escalate_for_emergency_attention`
+- `close_with_guidance`
 
 ## Reward Design
 
-The environment uses shaped rewards:
+The reward engine in [app/grader.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/app/grader.py) uses weighted components:
 
-- partial reward for correct intermediate actions
-- higher reward for correct final resolution
-- negative reward for invalid or unsafe actions
+- intent correctness: `0.15`
+- risk classification correctness: `0.20`
+- action correctness: `0.25`
+- policy compliance: `0.10`
+- logistics validity: `0.10`
+- escalation correctness: `0.10`
+- summary completeness: `0.05`
+- patient reply quality: `0.05`
 
-The final episode score is graded from `0.0` to `1.0`.
+Penalties are applied for:
+
+- schema failure
+- unsafe failure to escalate
+- invalid or forbidden actions
+- contradiction between reply and selected action
+- unnecessary clarification
+- wrong risk flag
 
 ## Project Structure
 
-- `app/env.py` - environment logic
-- `app/tasks.py` - task definitions
-- `app/models.py` - typed models
-- `app/grader.py` - deterministic grading
-- `inference.py` - LLM runner using OpenAI-compatible client calls
-- `server/app.py` - FastAPI server for Space deployment
-- `Dockerfile` - container setup
-- `requirements.txt` - Python dependencies
-- `openenv.yaml` - environment metadata
-- `pyproject.toml` - package metadata
+- [app/env.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/app/env.py)
+- [app/grader.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/app/grader.py)
+- [app/models.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/app/models.py)
+- [app/case_generator.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/app/case_generator.py)
+- [app/evaluation.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/app/evaluation.py)
+- [app/heuristic_policy.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/app/heuristic_policy.py)
+- [app/model_policy.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/app/model_policy.py)
+- [app/plotting.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/app/plotting.py)
+- [app/prompting.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/app/prompting.py)
+- [app/tasks.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/app/tasks.py)
+- [app/training_data.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/app/training_data.py)
+- [app/structured_output.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/app/structured_output.py)
+- [inference.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/inference.py)
+- [train_scaffold.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/train_scaffold.py)
+- [evaluate.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/evaluate.py)
+- [server/app.py](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/server/app.py)
+- [openenv.yaml](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/openenv.yaml)
 
 ## Run Locally
 
@@ -118,31 +146,80 @@ The final episode score is graded from `0.0` to `1.0`.
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
+python inference.py
 ```
 
-Set environment variables:
+Optional environment variables for live model calls:
 
 ```powershell
 $env:HF_TOKEN="your_token"
+$env:OPENAI_API_KEY="your_token"
 $env:API_BASE_URL="https://router.huggingface.co/v1"
 $env:MODEL_NAME="katanemo/Arch-Router-1.5B:hf-inference"
 ```
 
-Run:
+Without API credentials, `inference.py` falls back to a deterministic heuristic policy so the environment still runs.
 
-```bash
+To run local adapter inference after fine-tuning:
+
+```powershell
+$env:LOCAL_BASE_MODEL="Qwen/Qwen2.5-0.5B-Instruct"
+$env:LOCAL_ADAPTER_PATH="artifacts/training"
 python inference.py
 ```
 
-## Run Server Locally
+## Training Scaffold
 
-Install updated dependencies first:
+Run the LoRA fine-tuning scaffold:
 
 ```bash
-pip install -r requirements.txt
+python train_scaffold.py --base-model Qwen/Qwen2.5-0.5B-Instruct --num-train-epochs 3 --variants-per-task 8 --output-dir artifacts/training
 ```
 
-Start the API server:
+What it does:
+
+- expands each seeded task into deterministic train and eval variants
+- builds an SFT dataset of observation to JSON decision examples
+- fine-tunes a causal LM with `TRL` `SFTTrainer` and `PEFT` LoRA
+- evaluates the untuned base model and the trained adapter with the same reward engine
+- saves adapter checkpoints and reports under `artifacts/training`
+- exports `reward_curve.svg` and `loss_curve.svg`
+
+Key outputs:
+
+- `data/train.jsonl`
+- `data/eval.jsonl`
+- `baseline_eval.json`
+- `heuristic_eval.json`
+- `trained_eval.json`
+- `training_summary.json`
+- `trainer_log_history.json`
+- `reward_curve.svg`
+- `loss_curve.svg`
+
+## Evaluation Script
+
+Evaluate the heuristic baseline:
+
+```bash
+python evaluate.py --policy heuristic --split eval --variants-per-task 8
+```
+
+Evaluate the untuned base model:
+
+```bash
+python evaluate.py --policy baseline --base-model Qwen/Qwen2.5-0.5B-Instruct --split eval --variants-per-task 8
+```
+
+Evaluate a trained adapter:
+
+```bash
+python evaluate.py --policy trained --base-model Qwen/Qwen2.5-0.5B-Instruct --adapter-path artifacts/training --split eval --variants-per-task 8
+```
+
+## API
+
+Start the server:
 
 ```bash
 uvicorn server.app:app --host 0.0.0.0 --port 7860
@@ -157,33 +234,20 @@ Useful endpoints:
 - `POST /step/{session_id}`
 - `POST /run_inference/{task_id}`
 
-## Run With Docker
+`POST /step/{session_id}` expects the same structured JSON shown in the output schema section.
 
-Build:
+## Current Status
 
-```bash
-docker build -t physio-env .
-```
+Phase 2 and a real LoRA fine-tuning path are now wired:
 
-Run:
+- structured task observations
+- PRD-aligned response schema
+- deterministic reward breakdown
+- safety penalties for missed escalation
+- inference runner and FastAPI endpoints updated to the new contract
+- runnable `TRL` + `PEFT` LoRA training scaffold
+- shared evaluation metrics for reward, intent, risk, action, callback, priority recall, and unsafe rate
+- base-model vs trained-adapter evaluation with the same artifact format
+- SVG reward and loss curve export
 
-```powershell
-docker run --rm -e HF_TOKEN=$env:HF_TOKEN -e OPENAI_BASE_URL=$env:OPENAI_BASE_URL -e OPENAI_MODEL=$env:OPENAI_MODEL physio-env
-```
-
-The container now serves the API on port `7860`. To expose it locally:
-
-```powershell
-docker run --rm -p 7860:7860 -e HF_TOKEN=$env:HF_TOKEN -e API_BASE_URL=$env:API_BASE_URL -e MODEL_NAME=$env:MODEL_NAME physio-env
-```
-
-## Environment Variables
-
-- `HF_TOKEN` or `OPENAI_API_KEY`
-- `API_BASE_URL`
-- `MODEL_NAME`
-
-## Notes
-
-- Do not store tokens in source files.
-- The final submission path uses live LLM calls and fails if the API is not configured.
+Next build steps are dependency installation, an actual fine-tuning run to produce committed artifacts, PNG plot export for submission assets, and HF Space packaging.

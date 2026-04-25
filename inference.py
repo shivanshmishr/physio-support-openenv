@@ -6,107 +6,15 @@ import os
 from openai import OpenAI
 
 from app.env import PhysioSupportEnv
-from app.grader import grade_episode
+from app.grader import grade_episode, normalize_task_score
+from app.heuristic_policy import heuristic_decision
+from app.model_policy import load_model_policy_from_env
+from app.prompting import SYSTEM_PROMPT, build_user_prompt, schema_example
+from app.structured_output import extract_json_object, validate_submission_payload
 from app.tasks import TASKS
 
-
-SYSTEM_PROMPT = """
-You are an assistant choosing the next action for a physiotherapy support workflow.
-Return only compact JSON with keys: action and optional slot_id.
-Allowed actions: ask_pincode, ask_time_preference, show_available_slots, book_slot, reschedule_slot, cancel_booking, escalate_to_human, confirm_completion.
-Choose the safest next action based on the state.
-Rules:
-- If action is book_slot or reschedule_slot, slot_id must exactly match one value from available_slots.
-- For all other actions, do not include slot_id.
-- Do not invent placeholders like "time", "new_slot", "pincode", or "task_type".
-- Prefer the next sensible workflow action instead of repeating the same invalid action.
-- You must choose the action from allowed_actions.
-- Follow workflow order strictly using task_type and flow_progress.
-- For new_booking:
-  flow_progress 0 -> ask_pincode if pincode is missing
-  flow_progress 1 -> show_available_slots
-  flow_progress 2 -> book_slot with the valid slot from available_slots
-  flow_progress 3 -> confirm_completion
-- For reschedule:
-  flow_progress 0 -> show_available_slots
-  flow_progress 1 -> reschedule_slot with a slot from available_slots
-  flow_progress 2 -> confirm_completion
-- For escalation:
-  flow_progress 0 -> escalate_to_human
-  flow_progress 1 -> confirm_completion
-""".strip()
-
-_MIN_SCORE = 0.1
-_MAX_SCORE = 0.9
-
-
-def open_unit_interval(value: float) -> float:
-    """Clamp score to a conservative safe band within (0, 1)."""
-    if value <= _MIN_SCORE:
-        return _MIN_SCORE
-    if value >= _MAX_SCORE:
-        return _MAX_SCORE
-    return value
-
-
-def extract_json_object(content: str) -> dict:
-    cleaned = content.strip()
-
-    if cleaned.startswith("```"):
-        lines = [line for line in cleaned.splitlines() if not line.strip().startswith("```")]
-        cleaned = "\n".join(lines).strip()
-
-    start = cleaned.find("{")
-    end = cleaned.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        raise ValueError(f"Model response did not contain a JSON object: {content}")
-
-    return json.loads(cleaned[start : end + 1])
-
-
-def validate_action_payload(action: dict, observation: dict) -> dict:
-    allowed_actions = {
-        "ask_pincode",
-        "ask_time_preference",
-        "show_available_slots",
-        "book_slot",
-        "reschedule_slot",
-        "cancel_booking",
-        "escalate_to_human",
-        "confirm_completion",
-    }
-    action_name = action.get("action")
-    available_slots = observation.get("available_slots", [])
-
-    if action_name not in allowed_actions:
-        raise ValueError(f"Invalid action returned by model: {action_name}")
-
-    if action_name in {"book_slot", "reschedule_slot"}:
-        slot_id = action.get("slot_id")
-        if slot_id not in available_slots:
-            raise ValueError(f"Invalid slot_id returned by model: {slot_id}. Allowed slots: {available_slots}")
-        return {"action": action_name, "slot_id": slot_id}
-
-    return {"action": action_name}
-
-
-def fallback_action(observation: dict) -> dict:
-    allowed_actions = observation.get("allowed_actions", [])
-    if not allowed_actions:
-        return {"action": "confirm_completion"}
-
-    action_name = allowed_actions[0]
-    if action_name in {"book_slot", "reschedule_slot"}:
-        available_slots = observation.get("available_slots", [])
-        if not available_slots:
-            return {"action": "confirm_completion"}
-        return {"action": action_name, "slot_id": available_slots[0]}
-
-    return {"action": action_name}
-
-
 def build_client() -> OpenAI | None:
-    api_key = os.getenv("HF_TOKEN")
+    api_key = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
     base_url = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
 
     if not api_key:
@@ -120,24 +28,7 @@ def build_client() -> OpenAI | None:
 
 def llm_action(client: OpenAI, observation: dict) -> dict:
     model = os.getenv("MODEL_NAME", "gpt-4.1-mini")
-    user_prompt = (
-        "Choose the next action for this state.\n"
-        "Return JSON only.\n"
-        "Examples:\n"
-        'State: {"task_type":"new_booking","flow_progress":0,"known_info":{"pincode":null},"available_slots":["2026-04-05 10:00"]}\n'
-        'Response: {"action":"ask_pincode"}\n'
-        'State: {"task_type":"new_booking","flow_progress":2,"known_info":{"pincode":"400053"},"available_slots":["2026-04-05 10:00"]}\n'
-        'Response: {"action":"book_slot","slot_id":"2026-04-05 10:00"}\n'
-        'State: {"task_type":"reschedule","flow_progress":0,"available_slots":["2026-04-05 09:30"]}\n'
-        'Response: {"action":"show_available_slots"}\n'
-        'State: {"task_type":"reschedule","flow_progress":1,"available_slots":["2026-04-05 09:30","2026-04-05 10:30"],"allowed_actions":["reschedule_slot"]}\n'
-        'Response: {"action":"reschedule_slot","slot_id":"2026-04-05 09:30"}\n'
-        'State: {"task_type":"escalation","flow_progress":0,"available_slots":[]}\n'
-        'Response: {"action":"escalate_to_human"}\n'
-        f"State: {json.dumps(observation)}\n"
-        f"Allowed actions: {json.dumps(observation.get('allowed_actions', []))}\n"
-        f"Available slots you may use exactly as written: {json.dumps(observation.get('available_slots', []))}"
-    )
+    user_prompt = build_user_prompt(observation)
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -155,7 +46,7 @@ def llm_action(client: OpenAI, observation: dict) -> dict:
         action = extract_json_object(content)
 
         try:
-            return validate_action_payload(action, observation)
+            return validate_submission_payload(action, observation)
         except ValueError as exc:
             if attempt == 1:
                 raise
@@ -165,8 +56,8 @@ def llm_action(client: OpenAI, observation: dict) -> dict:
                     "role": "user",
                     "content": (
                         "That response was invalid. "
-                        f"{exc}. Return corrected JSON only. "
-                        "If using book_slot or reschedule_slot, slot_id must be an exact entry from available_slots."
+                        f"{exc}. Return corrected JSON only and keep next_action inside allowed_actions. "
+                        f"Schema example: {json.dumps(schema_example())}"
                     ),
                 }
             )
@@ -175,13 +66,17 @@ def llm_action(client: OpenAI, observation: dict) -> dict:
 
 
 def choose_action(client: OpenAI | None, observation: dict) -> tuple[dict, str]:
-    if client is None:
-        return fallback_action(observation), "fallback"
+    local_model_policy = load_model_policy_from_env()
+    if local_model_policy is not None:
+        return local_model_policy.predict(observation), "local_model"
 
-    try:
-        return llm_action(client, observation), "llm"
-    except Exception as exc:
-        return fallback_action(observation), "fallback"
+    if client is not None:
+        try:
+            return llm_action(client, observation), "llm"
+        except Exception:
+            pass
+
+    return heuristic_decision(observation), "heuristic"
 
 
 def format_action_for_log(action: dict) -> str:
@@ -190,34 +85,36 @@ def format_action_for_log(action: dict) -> str:
 
 def main() -> None:
     client = build_client()
-    model_name = os.getenv("MODEL_NAME", "gpt-4.1-mini")
+    model_name = os.getenv("LOCAL_ADAPTER_PATH") or os.getenv("LOCAL_BASE_MODEL") or os.getenv("MODEL_NAME", "heuristic")
 
     for task in TASKS:
-        env = PhysioSupportEnv(task)
-        observation = env.reset()
-        total_reward = 0.0
+        env = PhysioSupportEnv(task["task_id"])
+        observation = env.reset_dict()
+        raw_total_reward = 0.0
         rewards: list[float] = []
         step_number = 0
         done = False
         success = False
+        score = 0.0
+        info: dict = {}
 
         print(f"[START] task={task['task_id']} env=physio_support model={model_name}")
         try:
             while not done and step_number < task["max_steps"]:
-                action, _ = choose_action(client, observation)
-                observation, reward, done, info = env.step(action)
+                action, source = choose_action(client, observation)
+                observation, reward, done, info = env.step_dict(action)
                 step_number += 1
-                total_reward += reward
+                raw_total_reward += float(info.get("raw_total_reward", reward))
                 rewards.append(reward)
                 error_text = info["error"] if info["error"] else "null"
                 print(
-                    f"[STEP] step={step_number} action={format_action_for_log(action)} "
+                    f"[STEP] step={step_number} source={source} action={format_action_for_log(action)} "
                     f"reward={reward:.2f} done={str(done).lower()} error={error_text}"
                 )
 
-            score = grade_episode(total_reward, observation)
-            score = open_unit_interval(float(score))
-            success = score >= float(task.get("success_score_threshold", 0.8))
+            score = float(info.get("task_score", grade_episode(raw_total_reward, env.state_dict())))
+            score = normalize_task_score(score)
+            success = score >= float(task.get("success_score_threshold", 0.72))
         finally:
             try:
                 env.close()
@@ -228,7 +125,7 @@ def main() -> None:
                 "[END] "
                 f"success={str(success).lower()} "
                 f"score={score:.6f} "
-                f"total_reward={total_reward:.6f} "
+                f"raw_total_reward={raw_total_reward:.6f} "
                 f"steps={step_number} "
                 f"rewards={rewards_str}"
             )

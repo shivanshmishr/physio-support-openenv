@@ -6,25 +6,12 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from app.env import PhysioSupportEnv
-from app.grader import grade_episode
-from app.tasks import TASKS
+from app.grader import grade_episode, normalize_task_score, reward_spec
+from app.models import CareCoordinationAction, Observation, PhysioSupportState
+from app.tasks import TASKS, TASKS_BY_ID
 from inference import build_client, choose_action
 
-_MIN_SCORE = 0.1
-_MAX_SCORE = 0.9
-
-
-def clamp_score(value: float) -> float:
-    if value <= _MIN_SCORE:
-        return _MIN_SCORE
-    if value >= _MAX_SCORE:
-        return _MAX_SCORE
-    return value
-
-
 app = FastAPI(title="PhysioSupportEnv", version="0.1.0")
-
-TASKS_BY_ID = {task["task_id"]: task for task in TASKS}
 SESSIONS: dict[str, PhysioSupportEnv] = {}
 
 
@@ -32,23 +19,47 @@ class ResetRequest(BaseModel):
     task_id: str | None = None
 
 
-class StepRequest(BaseModel):
-    action: str
-    slot_id: str | None = None
-
-
 @app.get("/")
 def root() -> dict:
     return {
         "name": "physio-support-env",
         "status": "ok",
-        "endpoints": ["/health", "/tasks", "/reset", "/state/{session_id}", "/step/{session_id}"],
+        "endpoints": [
+            "/health",
+            "/tasks",
+            "/metadata",
+            "/schema",
+            "/reward_spec",
+            "/reset",
+            "/state/{session_id}",
+            "/step/{session_id}",
+            "/run_inference/{task_id}",
+        ],
     }
 
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok"}
+    return {"status": "healthy"}
+
+
+@app.get("/metadata")
+def metadata() -> dict:
+    return PhysioSupportEnv().get_metadata().model_dump()
+
+
+@app.get("/schema")
+def schema() -> dict:
+    return {
+        "action": CareCoordinationAction.model_json_schema(),
+        "observation": Observation.model_json_schema(),
+        "state": PhysioSupportState.model_json_schema(),
+    }
+
+
+@app.get("/reward_spec")
+def get_reward_spec() -> dict:
+    return reward_spec()
 
 
 @app.get("/tasks")
@@ -57,7 +68,7 @@ def list_tasks() -> dict:
         "tasks": [
             {
                 "task_id": task["task_id"],
-                "task_type": task["task_type"],
+                "task_family": task["task_family"],
                 "patient_message": task["patient_message"],
                 "max_steps": task["max_steps"],
             }
@@ -74,10 +85,10 @@ def reset_env(request: ResetRequest | None = None) -> dict:
         raise HTTPException(status_code=404, detail=f"Unknown task_id: {requested_task_id}")
 
     session_id = str(uuid4())
-    env = PhysioSupportEnv(task)
-    state = env.reset()
+    env = PhysioSupportEnv(requested_task_id)
+    observation = env.reset_dict()
     SESSIONS[session_id] = env
-    return {"session_id": session_id, "state": state}
+    return {"session_id": session_id, "observation": observation, "done": False, "reward": None}
 
 
 @app.get("/state/{session_id}")
@@ -85,20 +96,23 @@ def get_state(session_id: str) -> dict:
     env = SESSIONS.get(session_id)
     if env is None:
         raise HTTPException(status_code=404, detail=f"Unknown session_id: {session_id}")
-    return {"session_id": session_id, "state": env.state(), "done": env.done}
+    return {"session_id": session_id, "state": env.state_dict(), "done": env.done}
 
 
 @app.post("/step/{session_id}")
-def step_env(session_id: str, request: StepRequest) -> dict:
+def step_env(session_id: str, request: dict) -> dict:
     env = SESSIONS.get(session_id)
     if env is None:
         raise HTTPException(status_code=404, detail=f"Unknown session_id: {session_id}")
 
-    state, reward, done, info = env.step(request.model_dump(exclude_none=True))
+    action = request.get("action", request)
+    observation, reward, done, info = env.step_dict(action)
     return {
         "session_id": session_id,
-        "state": state,
+        "observation": observation,
         "reward": reward,
+        "task_score": float(info.get("task_score", normalize_task_score(reward))),
+        "raw_reward": float(info.get("raw_total_reward", reward)),
         "done": done,
         "info": info,
     }
@@ -111,15 +125,13 @@ def run_inference(task_id: str) -> dict:
         raise HTTPException(status_code=404, detail=f"Unknown task_id: {task_id}")
 
     client = build_client()
-    if client is None:
-        raise HTTPException(status_code=500, detail="No API client configured. Set HF_TOKEN or OPENAI_API_KEY.")
-
-    env = PhysioSupportEnv(task)
-    observation = env.reset()
+    env = PhysioSupportEnv(task_id=task_id)
+    observation = env.reset_dict()
     steps: list[dict] = []
-    total_reward = 0.0
+    raw_total_reward = 0.0
     done = False
     step_number = 0
+    info: dict = {}
 
     while not done and step_number < task["max_steps"]:
         try:
@@ -127,32 +139,35 @@ def run_inference(task_id: str) -> dict:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"LLM action generation failed: {exc}") from exc
 
-        observation, reward, done, info = env.step(action)
+        observation, reward, done, info = env.step_dict(action)
         step_number += 1
-        total_reward += reward
+        raw_total_reward += float(info.get("raw_total_reward", reward))
         steps.append(
             {
                 "step": step_number,
-                "action": action,
+                "decision": action,
                 "source": action_source,
                 "reward": reward,
+                "task_score": float(info.get("task_score", normalize_task_score(reward))),
+                "raw_reward": float(info.get("raw_total_reward", reward)),
                 "done": done,
                 "info": info,
-                "state": observation,
+                "observation": observation,
             }
         )
 
-    score = clamp_score(float(grade_episode(total_reward, observation)))
+    score = float(info.get("task_score", grade_episode(raw_total_reward, env.state_dict())))
+    score = normalize_task_score(score)
 
     return {
         "task_id": task_id,
-        "model": "llm",
+        "model": "llm" if client is not None else "heuristic",
         "score": score,
         "success": score >= float(task.get("success_score_threshold", 0.8)),
-        "total_reward": total_reward,
+        "raw_total_reward": raw_total_reward,
         "done": done,
         "steps": steps,
-        "final_state": observation,
+        "final_state": env.state_dict(),
     }
 
 

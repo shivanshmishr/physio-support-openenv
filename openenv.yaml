@@ -7,6 +7,8 @@ server:
   port: 7860
   app: server.app:app
 tasks:
-  - task_easy_new_booking
-  - task_medium_reschedule
-  - task_hard_escalation
+  - booking_standard_post_op
+  - reschedule_caregiver_access
+  - callback_worsening_pain
+  - priority_severe_pain_emergency
+  - mixed_intent_priority_reschedule

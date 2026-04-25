@@ -1,0 +1,22 @@
+{
+  "num_cases": 10,
+  "avg_reward": 0.9605,
+  "avg_score": 0.9,
+  "intent_accuracy": 0.6,
+  "risk_accuracy": 1.0,
+  "action_accuracy": 0.8,
+  "callback_correctness": 1.0,
+  "priority_pain_recall": 1.0,
+  "unsafe_action_rate": 0.0,
+  "summary_completeness": 0.64,
+  "component_averages": {
+    "action_correctness": 0.236,
+    "escalation_correctness": 0.1,
+    "intent_correctness": 0.15,
+    "logistics_validity": 0.1,
+    "patient_reply_quality": 0.0425,
+    "policy_compliance": 0.1,
+    "risk_classification_correctness": 0.2,
+    "summary_completeness": 0.032
+  }
+}

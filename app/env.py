@@ -1,198 +1,211 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from typing import Any, Optional
 
-from app.models import Action, Observation
+from openenv.core.env_server import Environment
+from openenv.core.env_server.types import EnvironmentMetadata
+
+from app.grader import grade_episode, score_submission
+from app.models import CareCoordinationAction, Observation, PhysioSupportState
+from app.tasks import TASKS, TASKS_BY_ID
 
 
-class PhysioSupportEnv:
-    def __init__(self, task: dict):
-        self.task = deepcopy(task)
-        self.current_state: Observation | None = None
+class PhysioSupportEnv(Environment[CareCoordinationAction, Observation, PhysioSupportState]):
+    SUPPORTS_CONCURRENT_SESSIONS = True
+
+    def __init__(self, task_id: str | None = None, task: Optional[dict] = None):
+        super().__init__()
+        if task is not None:
+            self.task = deepcopy(task)
+        else:
+            self.task = deepcopy(TASKS_BY_ID[task_id or TASKS[0]["task_id"]])
+        self._validate_task_spec(self.task)
+        self.current_state: Optional[PhysioSupportState] = None
         self.done = False
-        self.history: list[str] = []
-        self.flow_progress = 0
 
-    def reset(self) -> dict:
+    def reset(
+        self,
+        seed: Optional[int] = None,
+        episode_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Observation:
+        if task_id is not None:
+            if task_id not in TASKS_BY_ID:
+                raise ValueError(f"Unknown task_id: {task_id}")
+            self.task = deepcopy(TASKS_BY_ID[task_id])
+            self._validate_task_spec(self.task)
+
         self.done = False
-        self.history = []
-        self.flow_progress = 0
-        self.current_state = Observation(
+        self.current_state = PhysioSupportState(
+            episode_id=episode_id or self.task["task_id"],
+            step_count=0,
             task_id=self.task["task_id"],
-            task_type=self.task["task_type"],
+            task_family=self.task["task_family"],
             patient_message=self.task["patient_message"],
-            known_info=self.task["known_info"],
-            available_slots=list(self.task["available_slots"]),
-            conversation_stage="collect_info",
+            patient_history_summary=self.task["patient_history_summary"],
+            care_plan_summary=self.task["care_plan_summary"],
+            appointment_context=deepcopy(self.task["appointment_context"]),
+            visit_context=deepcopy(self.task["visit_context"]),
+            operational_constraints=list(self.task["operational_constraints"]),
+            allowed_actions=list(self.task["allowed_actions"]),
+            policy_constraints=list(self.task["policy_constraints"]),
+            conversation_history=[],
+            episode_status="pending",
             last_action_error=None,
-            steps_taken=0,
-            booking_status="pending",
+            last_submission=None,
+            last_reward=None,
+            last_raw_reward=None,
+            last_reward_breakdown={},
+            penalties=[],
+            unsafe=False,
+            hidden_state=deepcopy(self.task["hidden_state"]),
+            max_steps=self.task["max_steps"],
         )
-        return self.state()
+        self._reset_rubric()
+        return self._build_observation()
 
-    def state(self) -> dict:
-        if self.current_state is None:
-            raise RuntimeError("Environment not initialized. Call reset() first.")
-        state = self.current_state.model_dump()
-        state["flow_progress"] = self.flow_progress
-        state["allowed_actions"] = self._allowed_actions()
-        return state
-
-    def _get_flow_progress(self) -> int:
-        return self.flow_progress
-
-    def _set_flow_progress(self, value: int) -> None:
-        self.flow_progress = value
-
-    def _allowed_actions(self) -> list[str]:
-        if self.current_state is None:
-            return []
-
-        progress = self._get_flow_progress()
-
-        if self.task["task_type"] == "new_booking":
-            if progress == 0:
-                return ["ask_pincode"]
-            if progress == 1:
-                return ["show_available_slots"]
-            if progress == 2:
-                return ["book_slot"]
-            if progress == 3:
-                return ["confirm_completion"]
-            return []
-
-        if self.task["task_type"] == "reschedule":
-            if progress == 0:
-                return ["show_available_slots"]
-            if progress == 1:
-                return ["reschedule_slot"]
-            if progress == 2:
-                return ["confirm_completion"]
-            return []
-
-        if progress == 0:
-            return ["escalate_to_human"]
-        if progress == 1:
-            return ["confirm_completion"]
-        return []
-
-    def step(self, action_input: dict) -> tuple[dict, float, bool, dict]:
+    def step(
+        self,
+        action: CareCoordinationAction | dict,
+        timeout_s: Optional[float] = None,
+        **kwargs: Any,
+    ) -> Observation:
         if self.current_state is None:
             raise RuntimeError("Environment not initialized. Call reset() first.")
 
         if self.done:
-            return self.state(), 0.0, True, {"error": "Episode already completed"}
+            return self._build_observation(
+                reward=0.0,
+                done=True,
+                metadata={"error": "Episode already completed", "reason": "done"},
+            )
 
-        action = Action.model_validate(action_input)
-        self.current_state.steps_taken += 1
-        reward = -0.2
-        reason = "Incorrect action for current state"
-        error = None
+        self.current_state.step_count += 1
+        validation_error = None
+        submission = None
 
-        if self.current_state.steps_taken > self.task["max_steps"]:
-            self.done = True
-            self.current_state.booking_status = "failed"
-            self.current_state.last_action_error = "Max steps exceeded"
-            return self.state(), -1.0, True, {"error": "Max steps exceeded", "reason": "too_many_steps"}
+        try:
+            submission = action if isinstance(action, CareCoordinationAction) else CareCoordinationAction.model_validate(action)
+        except Exception as exc:
+            validation_error = str(exc)
 
-        if action.action in self.history:
-            reward -= 0.1
+        reward_result = score_submission(submission, self.task, validation_error)
+        raw_total_reward = reward_result.total_reward
 
-        if self.task["task_type"] == "new_booking":
-            reward, reason, error = self._handle_new_booking(action)
-        elif self.task["task_type"] == "reschedule":
-            reward, reason, error = self._handle_reschedule(action)
-        else:
-            reward, reason, error = self._handle_escalation(action)
+        raw_submission = action.model_dump(exclude_none=True) if isinstance(action, CareCoordinationAction) else deepcopy(action)
+        self.current_state.last_submission = raw_submission
+        self.current_state.last_action_error = validation_error
+        self.current_state.last_raw_reward = raw_total_reward
+        self.current_state.last_reward_breakdown = reward_result.component_scores
+        self.current_state.penalties = reward_result.penalties
+        self.current_state.unsafe = reward_result.unsafe
+        self.current_state.episode_status = "completed" if reward_result.passed else "failed"
 
-        self.history.append(action.action)
-        self.current_state.last_action_error = error
-        return self.state(), reward, self.done, {"error": error, "reason": reason}
+        task_score = grade_episode(
+            raw_total_reward,
+            {
+                "episode_status": self.current_state.episode_status,
+                "unsafe": self.current_state.unsafe,
+            },
+        )
+        self.current_state.last_reward = task_score
 
-    def _handle_new_booking(self, action: Action) -> tuple[float, str, str | None]:
-        info = self.current_state.known_info
-        progress = self._get_flow_progress()
+        if submission is not None:
+            self.current_state.conversation_history.append(submission.patient_reply)
 
-        if action.action == "ask_pincode" and info.pincode is None and progress == 0:
-            info.pincode = self.task["serviceable_pincodes"][0]
-            self.current_state.conversation_stage = "select_action"
-            self._set_flow_progress(1)
-            return 0.16, "Collected missing pincode", None
+        self.done = True
 
-        if action.action == "show_available_slots" and info.pincode is not None and progress == 1:
-            self.current_state.conversation_stage = "select_action"
-            self._set_flow_progress(2)
-            return 0.24, "Displayed valid slots", None
+        return self._build_observation(
+            reward=task_score,
+            done=self.done,
+            metadata={
+                "error": validation_error,
+                "reason": reward_result.reason,
+                "task_score": task_score,
+                "raw_total_reward": raw_total_reward,
+                "breakdown": reward_result.component_scores,
+                "penalties": reward_result.penalties,
+                "penalty_values": reward_result.penalty_values,
+                "passed": reward_result.passed,
+                "unsafe": reward_result.unsafe,
+            },
+        )
 
-        if action.action == "book_slot" and action.slot_id == self.task["valid_slot"] and progress == 2:
-            self.current_state.booking_status = f"booked:{action.slot_id}"
-            self.current_state.conversation_stage = "finalize"
-            self._set_flow_progress(3)
-            return 0.40, "Booked the correct slot", None
+    @property
+    def state(self) -> PhysioSupportState:
+        if self.current_state is None:
+            raise RuntimeError("Environment not initialized. Call reset() first.")
+        return self.current_state
 
-        if action.action == "confirm_completion" and str(self.current_state.booking_status).startswith("booked:") and progress == 3:
-            self.done = True
-            self.current_state.conversation_stage = "done"
-            self._set_flow_progress(4)
-            return 0.16, "Completed booking flow", None
+    def state_dict(self) -> dict:
+        return self.state.model_dump()
 
-        if action.action == "escalate_to_human":
-            self.done = True
-            self.current_state.booking_status = "escalated"
-            self.current_state.conversation_stage = "done"
-            return -1.0, "Escalated a solvable request", "Unnecessary escalation"
+    def reset_dict(self, task_id: Optional[str] = None) -> dict:
+        return self.reset(task_id=task_id).model_dump()
 
-        return -0.2, "Action does not match booking flow order", "Invalid action for new booking task"
-
-    def _handle_reschedule(self, action: Action) -> tuple[float, str, str | None]:
-        info = self.current_state.known_info
-        progress = self._get_flow_progress()
-
-        if action.action == "show_available_slots" and info.existing_booking is not None and progress == 0:
-            self.current_state.conversation_stage = "select_action"
-            self._set_flow_progress(1)
-            return 0.285, "Displayed reschedule options", None
-
-        if action.action == "reschedule_slot" and action.slot_id == self.task["valid_slot"] and progress == 1:
-            info.existing_booking = action.slot_id
-            self.current_state.booking_status = f"rescheduled:{action.slot_id}"
-            self.current_state.conversation_stage = "finalize"
-            self._set_flow_progress(2)
-            return 0.475, "Rescheduled to a valid slot", None
-
-        if action.action == "confirm_completion" and str(self.current_state.booking_status).startswith("rescheduled:") and progress == 2:
-            self.done = True
-            self.current_state.conversation_stage = "done"
-            self._set_flow_progress(3)
-            return 0.19, "Completed reschedule flow", None
-
-        if action.action == "book_slot":
-            return -1.0, "Created duplicate booking instead of rescheduling", "Use reschedule_slot for this task"
-
-        return -0.2, "Action does not match reschedule flow order", "Invalid action for reschedule task"
-
-    def _handle_escalation(self, action: Action) -> tuple[float, str, str | None]:
-        progress = self._get_flow_progress()
-
-        if action.action == "escalate_to_human" and progress == 0:
-            self.current_state.booking_status = "escalated"
-            self.current_state.conversation_stage = "finalize"
-            self._set_flow_progress(1)
-            return 0.76, "Safely escalated urgent case", None
-
-        if action.action == "confirm_completion" and self.current_state.booking_status == "escalated" and progress == 1:
-            self.done = True
-            self.current_state.conversation_stage = "done"
-            self._set_flow_progress(2)
-            return 0.19, "Completed escalation flow", None
-
-        if action.action in {"book_slot", "show_available_slots", "reschedule_slot"}:
-            self.done = True
-            self.current_state.booking_status = "failed"
-            self.current_state.conversation_stage = "done"
-            return -1.0, "Unsafe handling of urgent case", "Urgent task must be escalated"
-
-        return -0.2, "Action does not match escalation flow order", "Invalid action for escalation task"
+    def step_dict(self, action_input: dict) -> tuple[dict, float, bool, dict]:
+        observation = self.step(action_input)
+        metadata = dict(observation.metadata)
+        reward = float(observation.reward) if observation.reward is not None else 0.0
+        return observation.model_dump(), reward, observation.done, metadata
 
     def close(self) -> None:
         self.done = True
+
+    def get_metadata(self) -> EnvironmentMetadata:
+        return EnvironmentMetadata(
+            name="physio-support-env",
+            description="OpenEnv environment for home physiotherapy care coordination with safety-sensitive workflow decisions.",
+            version="0.1.0",
+            author="MetaHackathon team",
+        )
+
+    def _build_observation(
+        self,
+        reward: Optional[float] = None,
+        done: Optional[bool] = None,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> Observation:
+        if self.current_state is None:
+            raise RuntimeError("Environment not initialized. Call reset() first.")
+
+        return Observation(
+            task_id=self.current_state.task_id,
+            task_family=self.current_state.task_family,
+            patient_message=self.current_state.patient_message,
+            patient_history_summary=self.current_state.patient_history_summary,
+            care_plan_summary=self.current_state.care_plan_summary,
+            appointment_context=deepcopy(self.current_state.appointment_context),
+            recent_history=list(self.current_state.conversation_history[-3:]),
+            visit_context=deepcopy(self.current_state.visit_context),
+            operational_constraints=list(self.current_state.operational_constraints),
+            allowed_actions=list(self.current_state.allowed_actions),
+            policy_constraints=list(self.current_state.policy_constraints),
+            step_id=self.current_state.step_count,
+            max_steps=self.current_state.max_steps,
+            done=self.done if done is None else done,
+            reward=reward,
+            metadata=metadata or {},
+        )
+
+    def _validate_task_spec(self, task: dict) -> None:
+        required_keys = {
+            "task_id",
+            "task_family",
+            "patient_message",
+            "patient_history_summary",
+            "care_plan_summary",
+            "appointment_context",
+            "visit_context",
+            "operational_constraints",
+            "allowed_actions",
+            "policy_constraints",
+            "hidden_state",
+            "max_steps",
+            "truth",
+        }
+        missing = sorted(required_keys - set(task.keys()))
+        if missing:
+            raise ValueError(f"Task '{task.get('task_id', 'unknown')}' missing required keys: {missing}")
