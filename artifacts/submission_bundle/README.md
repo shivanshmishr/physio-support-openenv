@@ -6,7 +6,7 @@ colorTo: yellow
 sdk: docker
 pinned: false
 license: mit
-short_description: Home physiotherapy care-coordination environment with structured reward scoring
+short_description: Safe home-physio coordination environment for OpenEnv
 ---
 
 # PhysioSupportEnv
