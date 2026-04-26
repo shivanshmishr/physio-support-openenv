@@ -146,8 +146,10 @@ Penalties are applied for:
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
-python inference.py
+python demo_app.py
 ```
+
+That launches the judge-facing Gradio demo on `http://localhost:7860`.
 
 Optional environment variables for live model calls:
 
@@ -166,6 +168,12 @@ To run local adapter inference after fine-tuning:
 $env:LOCAL_BASE_MODEL="Qwen/Qwen2.5-0.5B-Instruct"
 $env:LOCAL_ADAPTER_PATH="artifacts/training"
 python inference.py
+```
+
+To launch the API server directly instead of the Gradio demo:
+
+```bash
+uvicorn server.app:app --host 0.0.0.0 --port 7860
 ```
 
 ## Training Scaffold
@@ -217,6 +225,24 @@ Evaluate a trained adapter:
 python evaluate.py --policy trained --base-model Qwen/Qwen2.5-0.5B-Instruct --adapter-path artifacts/training --split eval --variants-per-task 8
 ```
 
+## Phase 6 RL Training
+
+For the real Phase 6 training story, use the environment-connected GRPO loop:
+
+```bash
+python phase6_train.py --base-model Qwen/Qwen2.5-0.5B-Instruct --output-dir artifacts/phase6/grpo_training --variants-per-task 8 --num-train-epochs 2 --num-generations 4 --bootstrap-adapter-path artifacts/training
+```
+
+What this does:
+
+- builds prompt-only train cases from the environment task bank
+- samples completions from the model instead of replaying teacher labels
+- scores each completion with `PhysioSupportEnv` through the real reward engine
+- updates the model with `TRL` `GRPOTrainer` against environment reward
+- saves baseline, trained, and heuristic evaluations in the same artifact format
+
+This is the correct Phase 6 path for the submission claim that the agent improved through environment feedback.
+
 ## Phase 6 Results
 
 The current best result comes from the successful HF Job `69ecb239d70108f37acde5a1`, reconstructed locally under [artifacts/phase6/final_results](/c:/Users/91932/OneDrive/Desktop/MetaHackathon/artifacts/phase6/final_results).
@@ -249,7 +275,9 @@ Committed result files:
 
 ## API
 
-Start the server:
+The Docker Space now launches the Gradio demo by default. The FastAPI server is still available for programmatic evaluation and manual endpoint testing.
+
+Start the API server manually:
 
 ```bash
 uvicorn server.app:app --host 0.0.0.0 --port 7860
@@ -268,17 +296,18 @@ Useful endpoints:
 
 ## Current Status
 
-The environment, evaluation path, and a working Phase 6 training result are now wired:
+The environment and evaluation path are wired, and the repo now includes both bootstrap SFT and real environment-reward Phase 6 training paths:
 
 - structured task observations
 - PRD-aligned response schema
 - deterministic reward breakdown
 - safety penalties for missed escalation
 - inference runner and FastAPI endpoints updated to the new contract
-- runnable `TRL` + `PEFT` LoRA training scaffold
+- runnable `TRL` + `PEFT` bootstrap LoRA training scaffold
+- runnable `TRL` `GRPOTrainer` Phase 6 environment-reward training path
 - shared evaluation metrics for reward, intent, risk, action, callback, priority recall, and unsafe rate
 - base-model vs trained-adapter evaluation with the same artifact format
 - committed Phase 6 final result bundle under `artifacts/phase6/final_results`
 - SVG comparison plots for the final submitted metrics
 
-Next build steps are adapter persistence, PNG export for submission assets, and HF Space packaging.
+The next required step is to rerun Phase 6 with the GRPO environment loop and replace the older bootstrap-era result bundle with true environment-trained artifacts.

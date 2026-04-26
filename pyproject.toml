@@ -16,6 +16,7 @@ dependencies = [
     "peft>=0.17.0",
     "trl>=0.20.0",
     "accelerate>=0.34.0",
+    "gradio>=5.0.0,<6.0.0",
 ]
 
 [project.scripts]
@@ -23,6 +24,7 @@ server = "server.app:main"
 train-scaffold = "train_scaffold:main"
 evaluate-policy = "evaluate:main"
 phase6-train = "phase6_train:main"
+demo-space = "demo_app:main"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import os
 from glob import glob
@@ -9,65 +10,66 @@ from app.evaluation import evaluate_policy, save_evaluation, save_json
 from app.heuristic_policy import HeuristicPolicy
 from app.model_policy import HuggingFaceModelPolicy
 from app.plotting import write_line_chart_svg
-from app.teacher_data import build_teacher_training_bundle, write_teacher_jsonl
+from app.rl_training import EnvironmentRewardFunction, build_grpo_training_bundle, write_jsonl
 
 
 def run_phase6_training(
     base_model: str,
     output_dir: str,
     variants_per_task: int,
-    min_teacher_score: float,
-    max_teacher_penalties: int,
     num_train_epochs: float,
     learning_rate: float,
     per_device_train_batch_size: int,
-    per_device_eval_batch_size: int,
     gradient_accumulation_steps: int,
-    max_length: int,
+    max_prompt_length: int,
+    max_completion_length: int,
+    num_generations: int,
+    temperature: float,
+    top_p: float,
     lora_r: int,
     lora_alpha: int,
     lora_dropout: float,
     seed: int,
-    max_new_tokens: int,
+    reward_mode: str,
+    bootstrap_adapter_path: str,
 ) -> dict:
-    torch, Dataset, AutoModelForCausalLM, AutoTokenizer, SFTConfig, SFTTrainer, LoraConfig, TaskType = _training_imports()
+    (
+        torch,
+        Dataset,
+        AutoModelForCausalLM,
+        AutoTokenizer,
+        GRPOConfig,
+        GRPOTrainer,
+        LoraConfig,
+        TaskType,
+        PeftModel,
+    ) = _training_imports()
 
     os.makedirs(output_dir, exist_ok=True)
-    bundle = build_teacher_training_bundle(
-        variants_per_task=variants_per_task,
-        min_score=min_teacher_score,
-        max_penalties=max_teacher_penalties,
-    )
-    train_examples = bundle["train_examples"]
+    bundle = build_grpo_training_bundle(variants_per_task=variants_per_task)
+    train_rows = bundle["train_rows"]
     eval_tasks = bundle["eval_tasks"]
-    teacher_summary = bundle["summary"]
-
-    if not train_examples:
-        raise RuntimeError("No teacher-approved training examples were generated.")
-
-    tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
-    if tokenizer.pad_token is None and tokenizer.eos_token is not None:
-        tokenizer.pad_token = tokenizer.eos_token
-
-    prepared_train_examples = _prepare_chat_training_examples(train_examples, tokenizer)
-    dataset = Dataset.from_list(prepared_train_examples)
-    dataset_split = dataset.train_test_split(test_size=max(1, min(4, len(prepared_train_examples) // 5)), seed=seed)
-    train_dataset = dataset_split["train"]
-    eval_dataset = dataset_split["test"]
+    split_summary = bundle["split_summary"]
 
     dataset_dir = os.path.join(output_dir, "data")
     os.makedirs(dataset_dir, exist_ok=True)
-    write_teacher_jsonl(os.path.join(dataset_dir, "teacher_train.jsonl"), prepared_train_examples)
-    save_json(os.path.join(dataset_dir, "teacher_train_records.json"), bundle["train_records"])
-    save_json(os.path.join(dataset_dir, "teacher_eval_records.json"), bundle["eval_records"])
-    save_json(os.path.join(dataset_dir, "teacher_summary.json"), teacher_summary)
+    write_jsonl(os.path.join(dataset_dir, "train_prompts.jsonl"), train_rows)
+    save_json(os.path.join(dataset_dir, "split_summary.json"), split_summary)
 
-    baseline_policy = HuggingFaceModelPolicy(base_model=base_model, max_new_tokens=max_new_tokens)
+    baseline_policy = HuggingFaceModelPolicy(
+        base_model=base_model,
+        max_new_tokens=max_completion_length,
+        temperature=0.0,
+    )
     baseline_eval = evaluate_policy(baseline_policy, eval_tasks)
     save_evaluation(os.path.join(output_dir, "baseline_eval.json"), baseline_eval)
     heuristic_eval = evaluate_policy(HeuristicPolicy(), eval_tasks)
     save_evaluation(os.path.join(output_dir, "heuristic_eval.json"), heuristic_eval)
     del baseline_policy
+
+    tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
+    if tokenizer.pad_token is None and tokenizer.eos_token is not None:
+        tokenizer.pad_token = tokenizer.eos_token
 
     model_kwargs = {"trust_remote_code": True}
     if torch.cuda.is_available():
@@ -76,44 +78,61 @@ def run_phase6_training(
     model = AutoModelForCausalLM.from_pretrained(base_model, **model_kwargs)
     model.config.use_cache = False
 
-    peft_config = LoraConfig(
-        task_type=TaskType.CAUSAL_LM,
-        r=lora_r,
-        lora_alpha=lora_alpha,
-        lora_dropout=lora_dropout,
-        bias="none",
-    )
+    peft_config = None
+    if bootstrap_adapter_path:
+        adapter_config_path = os.path.join(bootstrap_adapter_path, "adapter_config.json")
+        if not os.path.isdir(bootstrap_adapter_path) or not os.path.isfile(adapter_config_path):
+            raise FileNotFoundError(
+                "Bootstrap adapter path is invalid. "
+                f"Expected a local PEFT adapter directory containing adapter_config.json, got: {bootstrap_adapter_path}"
+            )
+        model = PeftModel.from_pretrained(model, bootstrap_adapter_path, is_trainable=True)
+    else:
+        peft_config = LoraConfig(
+            task_type=TaskType.CAUSAL_LM,
+            r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            bias="none",
+        )
 
-    training_args = SFTConfig(
+    training_args = _build_grpo_config(
+        GRPOConfig=GRPOConfig,
         output_dir=output_dir,
         num_train_epochs=num_train_epochs,
         learning_rate=learning_rate,
         per_device_train_batch_size=per_device_train_batch_size,
-        per_device_eval_batch_size=per_device_eval_batch_size,
         gradient_accumulation_steps=gradient_accumulation_steps,
         logging_steps=1,
         save_strategy="epoch",
-        eval_strategy="epoch",
         report_to="none",
         seed=seed,
-        dataset_text_field="training_text",
-        dataset_kwargs={"add_special_tokens": False},
-        max_length=max_length,
+        remove_unused_columns=False,
+        max_prompt_length=max_prompt_length,
+        max_completion_length=max_completion_length,
+        num_generations=num_generations,
+        generation_batch_size=max(per_device_train_batch_size, num_generations),
+        temperature=temperature,
+        top_p=top_p,
+        use_cpu=not torch.cuda.is_available(),
         gradient_checkpointing=torch.cuda.is_available(),
-        fp16=torch.cuda.is_available(),
-        bf16=False,
-        load_best_model_at_end=False,
+        bf16=torch.cuda.is_available(),
+        fp16=False,
     )
 
-    trainer = SFTTrainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
-        processing_class=tokenizer,
-        peft_config=peft_config,
-    )
+    trainer_kwargs = {
+        "model": model,
+        "args": training_args,
+        "reward_funcs": EnvironmentRewardFunction(reward_mode=reward_mode),
+        "train_dataset": Dataset.from_list(train_rows),
+    }
+    trainer_signature = inspect.signature(GRPOTrainer.__init__)
+    if "processing_class" in trainer_signature.parameters:
+        trainer_kwargs["processing_class"] = tokenizer
+    if peft_config is not None and "peft_config" in trainer_signature.parameters:
+        trainer_kwargs["peft_config"] = peft_config
 
+    trainer = GRPOTrainer(**trainer_kwargs)
     trainer.train()
     trainer.save_model(output_dir)
     tokenizer.save_pretrained(output_dir)
@@ -121,26 +140,31 @@ def run_phase6_training(
     trained_policy = HuggingFaceModelPolicy(
         base_model=base_model,
         adapter_path=output_dir,
-        max_new_tokens=max_new_tokens,
+        max_new_tokens=max_completion_length,
+        temperature=0.0,
     )
     trained_eval = evaluate_policy(trained_policy, eval_tasks)
     save_evaluation(os.path.join(output_dir, "trained_eval.json"), trained_eval)
 
-    reward_curve = _build_reward_curve(base_model, output_dir, eval_tasks, max_new_tokens)
-    loss_curve = _extract_loss_curve(trainer.state.log_history)
+    reward_curve = _build_reward_curve(base_model, output_dir, eval_tasks, max_completion_length)
+    loss_curve = _extract_loss_curve(getattr(trainer.state, "log_history", []))
     write_line_chart_svg(os.path.join(output_dir, "reward_curve.svg"), reward_curve, "Evaluation Reward By Epoch", "Avg Reward")
     write_line_chart_svg(os.path.join(output_dir, "loss_curve.svg"), loss_curve, "Training Loss", "Loss")
 
     with open(os.path.join(output_dir, "trainer_log_history.json"), "w", encoding="utf-8") as handle:
-        json.dump(trainer.state.log_history, handle, indent=2)
+        json.dump(getattr(trainer.state, "log_history", []), handle, indent=2)
 
     summary = {
+        "training_type": "grpo_env_reward",
         "output_dir": output_dir,
         "base_model": base_model,
         "adapter_path": output_dir,
-        "teacher_summary": teacher_summary,
-        "train_case_count": len(prepared_train_examples),
+        "bootstrap_adapter_path": bootstrap_adapter_path,
+        "reward_mode": reward_mode,
+        "variants_per_task": variants_per_task,
+        "train_case_count": len(train_rows),
         "eval_case_count": len(eval_tasks),
+        "split_summary": split_summary,
         "baseline_metrics": baseline_eval["metrics"],
         "trained_metrics": trained_eval["metrics"],
         "heuristic_metrics": heuristic_eval["metrics"],
@@ -149,22 +173,6 @@ def run_phase6_training(
     }
     save_json(os.path.join(output_dir, "training_summary.json"), summary)
     return summary
-
-
-def _prepare_chat_training_examples(examples: list[dict], tokenizer) -> list[dict]:
-    prepared: list[dict] = []
-    for example in examples:
-        training_text = example["text"]
-        if getattr(tokenizer, "chat_template", None):
-            training_text = tokenizer.apply_chat_template(
-                example["messages"],
-                tokenize=False,
-                add_generation_prompt=False,
-            )
-        updated = dict(example)
-        updated["training_text"] = training_text
-        prepared.append(updated)
-    return prepared
 
 
 def _build_reward_curve(base_model: str, output_dir: str, eval_tasks: list[dict], max_new_tokens: int) -> list[float]:
@@ -210,6 +218,12 @@ def _metric_delta(left: dict, right: dict) -> dict:
     return {key: float(right.get(key, 0.0)) - float(left.get(key, 0.0)) for key in tracked}
 
 
+def _build_grpo_config(GRPOConfig, **kwargs):
+    supported = set(inspect.signature(GRPOConfig).parameters.keys())
+    filtered = {key: value for key, value in kwargs.items() if key in supported}
+    return GRPOConfig(**filtered)
+
+
 def _training_imports():
     try:
         from pathlib import Path
@@ -223,35 +237,48 @@ def _training_imports():
 
         import torch
         from datasets import Dataset
-        from peft import LoraConfig, TaskType
+        from peft import LoraConfig, PeftModel, TaskType
         from transformers import AutoModelForCausalLM, AutoTokenizer
-        from trl import SFTConfig, SFTTrainer
+        from trl import GRPOConfig, GRPOTrainer
     except ImportError as exc:
         raise RuntimeError(
-            "TRL training dependencies are missing. Install torch, transformers, datasets, peft, accelerate, and trl."
+            "Phase 6 RL dependencies are missing. Install torch, transformers, datasets, peft, accelerate, and trl."
         ) from exc
 
-    return torch, Dataset, AutoModelForCausalLM, AutoTokenizer, SFTConfig, SFTTrainer, LoraConfig, TaskType
+    return torch, Dataset, AutoModelForCausalLM, AutoTokenizer, GRPOConfig, GRPOTrainer, LoraConfig, TaskType, PeftModel
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run Phase 6 teacher-distillation training for PhysioSupportEnv.")
-    parser.add_argument("--base-model", type=str, default="Qwen/Qwen2.5-0.5B-Instruct", help="Base model to fine-tune.")
-    parser.add_argument("--output-dir", type=str, default="artifacts/phase6/training", help="Directory for checkpoints and reports.")
+    parser = argparse.ArgumentParser(description="Run Phase 6 environment-connected GRPO training for PhysioSupportEnv.")
+    parser.add_argument("--base-model", type=str, default="Qwen/Qwen2.5-0.5B-Instruct", help="Base model to optimize.")
+    parser.add_argument("--output-dir", type=str, default="artifacts/phase6/grpo_training", help="Directory for checkpoints and reports.")
     parser.add_argument("--variants-per-task", type=int, default=8, help="Synthetic variants created per base task.")
-    parser.add_argument("--min-teacher-score", type=float, default=0.8, help="Minimum teacher score required for a training example.")
-    parser.add_argument("--max-teacher-penalties", type=int, default=0, help="Maximum penalty count allowed for teacher examples.")
-    parser.add_argument("--num-train-epochs", type=float, default=3.0, help="Training epochs.")
-    parser.add_argument("--learning-rate", type=float, default=2e-4, help="Learning rate.")
+    parser.add_argument("--num-train-epochs", type=float, default=2.0, help="GRPO training epochs.")
+    parser.add_argument("--learning-rate", type=float, default=5e-6, help="Learning rate.")
     parser.add_argument("--per-device-train-batch-size", type=int, default=1, help="Per-device train batch size.")
-    parser.add_argument("--per-device-eval-batch-size", type=int, default=1, help="Per-device eval batch size.")
     parser.add_argument("--gradient-accumulation-steps", type=int, default=8, help="Gradient accumulation steps.")
-    parser.add_argument("--max-length", type=int, default=1024, help="Maximum tokenized sequence length.")
-    parser.add_argument("--lora-r", type=int, default=16, help="LoRA rank.")
-    parser.add_argument("--lora-alpha", type=int, default=32, help="LoRA alpha.")
-    parser.add_argument("--lora-dropout", type=float, default=0.05, help="LoRA dropout.")
+    parser.add_argument("--max-prompt-length", type=int, default=1024, help="Maximum prompt token length.")
+    parser.add_argument("--max-completion-length", type=int, default=256, help="Maximum generated completion length.")
+    parser.add_argument("--num-generations", type=int, default=4, help="Completions sampled per prompt for GRPO.")
+    parser.add_argument("--temperature", type=float, default=0.9, help="Sampling temperature during GRPO rollouts.")
+    parser.add_argument("--top-p", type=float, default=0.95, help="Top-p sampling for GRPO rollouts.")
+    parser.add_argument("--lora-r", type=int, default=16, help="LoRA rank when training from the base model directly.")
+    parser.add_argument("--lora-alpha", type=int, default=32, help="LoRA alpha when training from the base model directly.")
+    parser.add_argument("--lora-dropout", type=float, default=0.05, help="LoRA dropout when training from the base model directly.")
     parser.add_argument("--seed", type=int, default=7, help="Random seed.")
-    parser.add_argument("--max-new-tokens", type=int, default=256, help="Max generation length for policy evaluation.")
+    parser.add_argument(
+        "--reward-mode",
+        type=str,
+        choices=["raw", "task_score"],
+        default="raw",
+        help="Reward signal to optimize from the environment.",
+    )
+    parser.add_argument(
+        "--bootstrap-adapter-path",
+        type=str,
+        default="",
+        help="Optional warm-start adapter path from Phase 5 or teacher-SFT before RL optimization.",
+    )
     return parser.parse_args()
 
 
@@ -261,19 +288,21 @@ def main() -> None:
         base_model=args.base_model,
         output_dir=args.output_dir,
         variants_per_task=args.variants_per_task,
-        min_teacher_score=args.min_teacher_score,
-        max_teacher_penalties=args.max_teacher_penalties,
         num_train_epochs=args.num_train_epochs,
         learning_rate=args.learning_rate,
         per_device_train_batch_size=args.per_device_train_batch_size,
-        per_device_eval_batch_size=args.per_device_eval_batch_size,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
-        max_length=args.max_length,
+        max_prompt_length=args.max_prompt_length,
+        max_completion_length=args.max_completion_length,
+        num_generations=args.num_generations,
+        temperature=args.temperature,
+        top_p=args.top_p,
         lora_r=args.lora_r,
         lora_alpha=args.lora_alpha,
         lora_dropout=args.lora_dropout,
         seed=args.seed,
-        max_new_tokens=args.max_new_tokens,
+        reward_mode=args.reward_mode,
+        bootstrap_adapter_path=args.bootstrap_adapter_path,
     )
     print(json.dumps(summary, indent=2))
 
