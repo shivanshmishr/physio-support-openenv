@@ -56,6 +56,8 @@ def score_completion_text(task: dict, observation: dict, completion_text: str) -
 @dataclass
 class EnvironmentRewardFunction:
     reward_mode: str = "raw"
+    summary_bonus_scale: float = 0.0
+    reply_bonus_scale: float = 0.0
 
     def __post_init__(self) -> None:
         self.__name__ = f"environment_reward_{self.reward_mode}"
@@ -71,8 +73,7 @@ class EnvironmentRewardFunction:
             )
             completion_text = _completion_to_text(completion)
             result = score_completion_text(task, observation, completion_text)
-            reward_key = "task_score" if self.reward_mode == "task_score" else "raw_reward"
-            rewards.append(float(result[reward_key]))
+            rewards.append(_select_reward_value(result, self.reward_mode, self.summary_bonus_scale, self.reply_bonus_scale))
         return rewards
 
 
@@ -113,3 +114,33 @@ def _completion_to_text(completion: Any) -> str:
             return "\n".join(text_parts)
 
     return str(completion)
+
+
+def _select_reward_value(
+    result: dict,
+    reward_mode: str,
+    summary_bonus_scale: float,
+    reply_bonus_scale: float,
+) -> float:
+    if reward_mode == "raw":
+        return float(result["raw_reward"])
+    if reward_mode == "task_score":
+        return float(result["task_score"])
+    if reward_mode != "shaped":
+        raise ValueError(f"Unsupported reward mode: {reward_mode}")
+
+    base_score = float(result["task_score"])
+    if result.get("unsafe"):
+        return base_score
+
+    breakdown = result.get("breakdown", {})
+    summary_ratio = _safe_component_ratio(breakdown.get("summary_completeness", 0.0), 0.05)
+    reply_ratio = _safe_component_ratio(breakdown.get("patient_reply_quality", 0.0), 0.05)
+    shaped_score = base_score + (summary_ratio * summary_bonus_scale) + (reply_ratio * reply_bonus_scale)
+    return max(0.0, min(1.0, shaped_score))
+
+
+def _safe_component_ratio(value: float, max_value: float) -> float:
+    if max_value <= 0:
+        return 0.0
+    return max(0.0, min(1.0, float(value) / max_value))

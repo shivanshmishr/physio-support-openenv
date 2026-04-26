@@ -50,7 +50,11 @@ def run_phase55_bootstrap_sft(
     )
     summary = {
         "training_type": "bootstrap_sft",
-        "bootstrap_source": "heuristic_teacher_sft" if training_data_mode == "teacher" else "structured_target_sft",
+        "bootstrap_source": {
+            "teacher": "heuristic_teacher_sft",
+            "structured": "structured_target_sft",
+            "hybrid": "hybrid_teacher_plus_structured_sft",
+        }[training_data_mode],
         **summary,
     }
     save_json(os.path.join(output_dir, "bootstrap_summary.json"), summary)
@@ -84,9 +88,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--training-data-mode",
         type=str,
-        choices=["structured", "teacher"],
-        default="teacher",
-        help="Bootstrap SFT source. Teacher mode uses high-scoring heuristic demonstrations as the warm start.",
+        choices=["structured", "teacher", "hybrid"],
+        default="hybrid",
+        help="Bootstrap SFT source. Hybrid mode combines structured truth targets with high-scoring heuristic demonstrations.",
     )
     parser.add_argument(
         "--teacher-min-score",

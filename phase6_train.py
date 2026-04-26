@@ -32,6 +32,8 @@ def run_phase6_training(
     lora_dropout: float,
     seed: int,
     reward_mode: str,
+    summary_bonus_scale: float,
+    reply_bonus_scale: float,
     bootstrap_adapter_path: str,
     bootstrap_auto: bool,
     bootstrap_output_dir: str,
@@ -158,7 +160,11 @@ def run_phase6_training(
     trainer_kwargs = {
         "model": model,
         "args": training_args,
-        "reward_funcs": EnvironmentRewardFunction(reward_mode=reward_mode),
+        "reward_funcs": EnvironmentRewardFunction(
+            reward_mode=reward_mode,
+            summary_bonus_scale=summary_bonus_scale,
+            reply_bonus_scale=reply_bonus_scale,
+        ),
         "train_dataset": Dataset.from_list(train_rows),
     }
     trainer_signature = inspect.signature(GRPOTrainer.__init__)
@@ -197,6 +203,8 @@ def run_phase6_training(
         "bootstrap_adapter_path": resolved_bootstrap_path,
         "bootstrap_auto": bootstrap_auto,
         "reward_mode": reward_mode,
+        "summary_bonus_scale": summary_bonus_scale,
+        "reply_bonus_scale": reply_bonus_scale,
         "variants_per_task": variants_per_task,
         "train_case_count": len(train_rows),
         "eval_case_count": len(eval_tasks),
@@ -362,9 +370,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--reward-mode",
         type=str,
-        choices=["raw", "task_score"],
-        default="raw",
+        choices=["raw", "task_score", "shaped"],
+        default="shaped",
         help="Reward signal to optimize from the environment.",
+    )
+    parser.add_argument(
+        "--summary-bonus-scale",
+        type=float,
+        default=0.10,
+        help="Extra shaped reward added when therapist_summary matches task coverage well.",
+    )
+    parser.add_argument(
+        "--reply-bonus-scale",
+        type=float,
+        default=0.05,
+        help="Extra shaped reward added when patient_reply is aligned, safe, and concise.",
     )
     parser.add_argument(
         "--bootstrap-adapter-path",
@@ -401,8 +421,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--bootstrap-training-data-mode",
         type=str,
-        choices=["structured", "teacher"],
-        default="teacher",
+        choices=["structured", "teacher", "hybrid"],
+        default="hybrid",
         help="Bootstrap SFT source used by --bootstrap-auto.",
     )
     parser.add_argument(
@@ -440,6 +460,8 @@ def main() -> None:
         lora_dropout=args.lora_dropout,
         seed=args.seed,
         reward_mode=args.reward_mode,
+        summary_bonus_scale=args.summary_bonus_scale,
+        reply_bonus_scale=args.reply_bonus_scale,
         bootstrap_adapter_path=args.bootstrap_adapter_path,
         bootstrap_auto=args.bootstrap_auto,
         bootstrap_output_dir=args.bootstrap_output_dir,

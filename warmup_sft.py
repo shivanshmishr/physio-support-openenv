@@ -40,6 +40,7 @@ def run_warmup(
     train_examples, eval_examples = build_sft_splits(variants_per_task=variants_per_task)
     split_summary = build_split_summary(variants_per_task=variants_per_task)
     teacher_bundle = None
+    structured_train_examples = train_examples
     if training_data_mode == "teacher":
         teacher_bundle = build_teacher_training_bundle(
             variants_per_task=variants_per_task,
@@ -47,6 +48,13 @@ def run_warmup(
             max_penalties=teacher_max_penalties,
         )
         train_examples = teacher_bundle["train_examples"]
+    elif training_data_mode == "hybrid":
+        teacher_bundle = build_teacher_training_bundle(
+            variants_per_task=variants_per_task,
+            min_score=teacher_min_score,
+            max_penalties=teacher_max_penalties,
+        )
+        train_examples = _interleave_examples(structured_train_examples, teacher_bundle["train_examples"])
 
     tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
     if tokenizer.pad_token is None and tokenizer.eos_token is not None:
@@ -230,6 +238,17 @@ def _prepare_chat_training_examples(examples: list[dict], tokenizer) -> list[dic
     return prepared
 
 
+def _interleave_examples(primary_examples: list[dict], secondary_examples: list[dict]) -> list[dict]:
+    merged: list[dict] = []
+    max_len = max(len(primary_examples), len(secondary_examples))
+    for index in range(max_len):
+        if index < len(primary_examples):
+            merged.append(primary_examples[index])
+        if index < len(secondary_examples):
+            merged.append(secondary_examples[index])
+    return merged
+
+
 def _training_imports():
     try:
         from pathlib import Path
@@ -274,9 +293,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--training-data-mode",
         type=str,
-        choices=["structured", "teacher"],
-        default="teacher",
-        help="Bootstrap SFT source. Teacher mode uses high-scoring heuristic demonstrations as the warm start.",
+        choices=["structured", "teacher", "hybrid"],
+        default="hybrid",
+        help="Bootstrap SFT source. Hybrid mode combines structured truth targets with high-scoring heuristic demonstrations.",
     )
     parser.add_argument(
         "--teacher-min-score",

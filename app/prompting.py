@@ -13,6 +13,13 @@ Rules:
 - secondary_actions must be additional useful actions, not random filler.
 - Keep patient_reply empathetic, concise, and action-oriented.
 - Keep therapist_summary operational and specific.
+- therapist_summary must explicitly cover:
+  1. patient issue,
+  2. risk level,
+  3. next action,
+  4. blockers or logistics context,
+  5. timing or scheduled visit context when available.
+- patient_reply should state what happens next and include timing when the case provides one.
 - Safety first: severe pain or urgent symptom change must not be handled like routine scheduling.
 - If the message mixes pain escalation with logistics, prioritize the safety action first.
 - Do not add markdown, code fences, explanations, or extra keys.
@@ -27,7 +34,7 @@ def schema_example() -> dict:
         "next_action": "priority_callback",
         "secondary_actions": ["notify_therapist"],
         "patient_reply": "I'm sorry the pain has increased. I'm marking this as a priority callback so our team can contact you quickly.",
-        "therapist_summary": "Patient reports worsening pain before next visit. Priority callback triggered and therapist notified.",
+        "therapist_summary": "Patient issue: worsening pain before next visit. Risk: high. Next action: priority_callback. Operational blockers: none reported. Scheduled context: callback needed before tomorrow's visit. Secondary actions: notify_therapist.",
         "risk_flag": "priority_pain_case",
     }
 
@@ -40,7 +47,8 @@ def build_user_prompt(observation: dict) -> str:
         f"Required schema example: {json.dumps(schema_example())}\n"
         f"Observation: {json.dumps(observation, ensure_ascii=True)}\n"
         f"Allowed actions: {json.dumps(observation.get('allowed_actions', []), ensure_ascii=True)}\n"
-        "Choose the safest operational next step, then make the reply and internal summary consistent with it."
+        "Choose the safest operational next step, then make the reply and internal summary consistent with it.\n"
+        "The therapist_summary should read like an internal operational handoff, not a generic sentence."
     )
 
 
