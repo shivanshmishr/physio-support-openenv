@@ -23,6 +23,7 @@ This environment is intentionally narrow in domain but broad in implication. We 
   [phase55_bootstrap_sft.py](phase55_bootstrap_sft.py),
   [train_scaffold.py](train_scaffold.py),
   [warmup_sft.py](warmup_sft.py)
+- Training notebook: [phase6_training_notebook.ipynb](phase6_training_notebook.ipynb)
 - Writeup / blog: [BLOG.md](BLOG.md)
 - Final result bundle: [artifacts/phase6/final_results](artifacts/phase6/final_results)
 - Submission package: [artifacts/submission_bundle](artifacts/submission_bundle)

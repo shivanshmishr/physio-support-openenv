@@ -242,6 +242,7 @@ The long-term value is not only that a model can answer patients. It is that a m
 
 - Hugging Face Space: `https://huggingface.co/spaces/shivansh9987/physio-support-openenv`
 - Environment manifest: [openenv.yaml](openenv.yaml)
+- Training notebook: [phase6_training_notebook.ipynb](phase6_training_notebook.ipynb)
 - Training scripts: [phase6_train.py](phase6_train.py), [phase55_bootstrap_sft.py](phase55_bootstrap_sft.py), [train_scaffold.py](train_scaffold.py), [warmup_sft.py](warmup_sft.py)
 - Final result bundle: [artifacts/phase6/final_results](artifacts/phase6/final_results)
 - Submission package: [artifacts/submission_bundle](artifacts/submission_bundle)

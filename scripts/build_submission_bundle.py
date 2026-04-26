@@ -20,6 +20,7 @@ BUNDLE_DIR = ROOT / "artifacts" / "submission_bundle"
 FILES_TO_COPY = [
     "README.md",
     "BLOG.md",
+    "phase6_training_notebook.ipynb",
     "openenv.yaml",
     "pyproject.toml",
     "requirements.txt",
