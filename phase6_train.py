@@ -11,6 +11,7 @@ from app.heuristic_policy import HeuristicPolicy
 from app.model_policy import HuggingFaceModelPolicy
 from app.plotting import write_line_chart_svg
 from app.rl_training import EnvironmentRewardFunction, build_grpo_training_bundle, write_jsonl
+from phase55_bootstrap_sft import run_phase55_bootstrap_sft
 
 
 def run_phase6_training(
@@ -32,6 +33,13 @@ def run_phase6_training(
     seed: int,
     reward_mode: str,
     bootstrap_adapter_path: str,
+    bootstrap_auto: bool,
+    bootstrap_output_dir: str,
+    bootstrap_num_train_epochs: float,
+    bootstrap_learning_rate: float,
+    bootstrap_per_device_eval_batch_size: int,
+    bootstrap_max_length: int,
+    bootstrap_showcase_limit: int,
 ) -> dict:
     (
         torch,
@@ -67,6 +75,27 @@ def run_phase6_training(
     save_evaluation(os.path.join(output_dir, "heuristic_eval.json"), heuristic_eval)
     del baseline_policy
 
+    bootstrap_summary = None
+    resolved_bootstrap_path = bootstrap_adapter_path.strip()
+    if not resolved_bootstrap_path and bootstrap_auto:
+        resolved_bootstrap_path, bootstrap_summary = _prepare_bootstrap_adapter(
+            base_model=base_model,
+            output_dir=bootstrap_output_dir or os.path.join(output_dir, "bootstrap_sft"),
+            variants_per_task=variants_per_task,
+            num_train_epochs=bootstrap_num_train_epochs,
+            learning_rate=bootstrap_learning_rate,
+            per_device_train_batch_size=per_device_train_batch_size,
+            per_device_eval_batch_size=bootstrap_per_device_eval_batch_size,
+            gradient_accumulation_steps=gradient_accumulation_steps,
+            max_length=bootstrap_max_length,
+            lora_r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            seed=seed,
+            max_new_tokens=max_completion_length,
+            showcase_limit=bootstrap_showcase_limit,
+        )
+
     tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
     if tokenizer.pad_token is None and tokenizer.eos_token is not None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -79,14 +108,14 @@ def run_phase6_training(
     model.config.use_cache = False
 
     peft_config = None
-    if bootstrap_adapter_path:
-        adapter_config_path = os.path.join(bootstrap_adapter_path, "adapter_config.json")
-        if not os.path.isdir(bootstrap_adapter_path) or not os.path.isfile(adapter_config_path):
+    if resolved_bootstrap_path:
+        adapter_config_path = os.path.join(resolved_bootstrap_path, "adapter_config.json")
+        if not os.path.isdir(resolved_bootstrap_path) or not os.path.isfile(adapter_config_path):
             raise FileNotFoundError(
                 "Bootstrap adapter path is invalid. "
-                f"Expected a local PEFT adapter directory containing adapter_config.json, got: {bootstrap_adapter_path}"
+                f"Expected a local PEFT adapter directory containing adapter_config.json, got: {resolved_bootstrap_path}"
             )
-        model = PeftModel.from_pretrained(model, bootstrap_adapter_path, is_trainable=True)
+        model = PeftModel.from_pretrained(model, resolved_bootstrap_path, is_trainable=True)
     else:
         peft_config = LoraConfig(
             task_type=TaskType.CAUSAL_LM,
@@ -159,7 +188,8 @@ def run_phase6_training(
         "output_dir": output_dir,
         "base_model": base_model,
         "adapter_path": output_dir,
-        "bootstrap_adapter_path": bootstrap_adapter_path,
+        "bootstrap_adapter_path": resolved_bootstrap_path,
+        "bootstrap_auto": bootstrap_auto,
         "reward_mode": reward_mode,
         "variants_per_task": variants_per_task,
         "train_case_count": len(train_rows),
@@ -171,6 +201,16 @@ def run_phase6_training(
         "improvement": _metric_delta(baseline_eval["metrics"], trained_eval["metrics"]),
         "gap_to_teacher": _metric_delta(trained_eval["metrics"], heuristic_eval["metrics"]),
     }
+    if bootstrap_summary is not None:
+        summary["bootstrap_summary"] = {
+            "training_type": bootstrap_summary.get("training_type"),
+            "output_dir": bootstrap_summary.get("output_dir"),
+            "adapter_path": bootstrap_summary.get("adapter_path"),
+            "train_case_count": bootstrap_summary.get("train_case_count"),
+            "eval_case_count": bootstrap_summary.get("eval_case_count"),
+            "schema_improvement": bootstrap_summary.get("schema_improvement"),
+            "trained_schema_metrics": bootstrap_summary.get("trained_schema_metrics"),
+        }
     save_json(os.path.join(output_dir, "training_summary.json"), summary)
     return summary
 
@@ -222,6 +262,47 @@ def _build_grpo_config(GRPOConfig, **kwargs):
     supported = set(inspect.signature(GRPOConfig).parameters.keys())
     filtered = {key: value for key, value in kwargs.items() if key in supported}
     return GRPOConfig(**filtered)
+
+
+def _prepare_bootstrap_adapter(
+    base_model: str,
+    output_dir: str,
+    variants_per_task: int,
+    num_train_epochs: float,
+    learning_rate: float,
+    per_device_train_batch_size: int,
+    per_device_eval_batch_size: int,
+    gradient_accumulation_steps: int,
+    max_length: int,
+    lora_r: int,
+    lora_alpha: int,
+    lora_dropout: float,
+    seed: int,
+    max_new_tokens: int,
+    showcase_limit: int,
+) -> tuple[str, dict | None]:
+    adapter_config_path = os.path.join(output_dir, "adapter_config.json")
+    if os.path.isdir(output_dir) and os.path.isfile(adapter_config_path):
+        return output_dir, None
+
+    summary = run_phase55_bootstrap_sft(
+        base_model=base_model,
+        output_dir=output_dir,
+        variants_per_task=variants_per_task,
+        num_train_epochs=num_train_epochs,
+        learning_rate=learning_rate,
+        per_device_train_batch_size=per_device_train_batch_size,
+        per_device_eval_batch_size=per_device_eval_batch_size,
+        gradient_accumulation_steps=gradient_accumulation_steps,
+        max_length=max_length,
+        lora_r=lora_r,
+        lora_alpha=lora_alpha,
+        lora_dropout=lora_dropout,
+        seed=seed,
+        max_new_tokens=max_new_tokens,
+        showcase_limit=showcase_limit,
+    )
+    return str(summary["adapter_path"]), summary
 
 
 def _training_imports():
@@ -279,6 +360,32 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Optional warm-start adapter path from Phase 5 or teacher-SFT before RL optimization.",
     )
+    parser.add_argument(
+        "--bootstrap-auto",
+        action="store_true",
+        help="Run the Phase 5.5 bootstrap SFT stage first when no bootstrap adapter path is provided.",
+    )
+    parser.add_argument(
+        "--bootstrap-output-dir",
+        type=str,
+        default="",
+        help="Where to save the bootstrap SFT adapter. Defaults to <output-dir>/bootstrap_sft.",
+    )
+    parser.add_argument("--bootstrap-num-train-epochs", type=float, default=2.0, help="Bootstrap SFT training epochs.")
+    parser.add_argument("--bootstrap-learning-rate", type=float, default=2e-4, help="Bootstrap SFT learning rate.")
+    parser.add_argument(
+        "--bootstrap-per-device-eval-batch-size",
+        type=int,
+        default=1,
+        help="Bootstrap SFT per-device eval batch size.",
+    )
+    parser.add_argument("--bootstrap-max-length", type=int, default=1024, help="Bootstrap SFT maximum tokenized sequence length.")
+    parser.add_argument(
+        "--bootstrap-showcase-limit",
+        type=int,
+        default=3,
+        help="How many representative bootstrap examples to save.",
+    )
     return parser.parse_args()
 
 
@@ -303,6 +410,13 @@ def main() -> None:
         seed=args.seed,
         reward_mode=args.reward_mode,
         bootstrap_adapter_path=args.bootstrap_adapter_path,
+        bootstrap_auto=args.bootstrap_auto,
+        bootstrap_output_dir=args.bootstrap_output_dir,
+        bootstrap_num_train_epochs=args.bootstrap_num_train_epochs,
+        bootstrap_learning_rate=args.bootstrap_learning_rate,
+        bootstrap_per_device_eval_batch_size=args.bootstrap_per_device_eval_batch_size,
+        bootstrap_max_length=args.bootstrap_max_length,
+        bootstrap_showcase_limit=args.bootstrap_showcase_limit,
     )
     print(json.dumps(summary, indent=2))
 

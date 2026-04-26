@@ -227,15 +227,34 @@ python evaluate.py --policy trained --base-model Qwen/Qwen2.5-0.5B-Instruct --ad
 
 ## Phase 6 RL Training
 
+If you want a remote-friendly warm start before GRPO, train a bootstrap SFT adapter first:
+
+```bash
+python phase55_bootstrap_sft.py --base-model Qwen/Qwen2.5-0.5B-Instruct --output-dir artifacts/phase55/bootstrap_sft --variants-per-task 8
+```
+
+What this does:
+
+- fine-tunes a LoRA adapter on the structured target JSON outputs
+- saves a reusable PEFT adapter for downstream RL
+- exports bootstrap schema metrics and checkpoints
+
 For the real Phase 6 training story, use the environment-connected GRPO loop:
 
 ```bash
-python phase6_train.py --base-model Qwen/Qwen2.5-0.5B-Instruct --output-dir artifacts/phase6/grpo_training --variants-per-task 8 --num-train-epochs 2 --num-generations 4 --bootstrap-adapter-path artifacts/training
+python phase6_train.py --base-model Qwen/Qwen2.5-0.5B-Instruct --output-dir artifacts/phase6/grpo_training --variants-per-task 8 --num-train-epochs 2 --num-generations 4 --bootstrap-adapter-path artifacts/phase55/bootstrap_sft
+```
+
+To run the full bootstrap-plus-GRPO pipeline in one HF job, use:
+
+```bash
+python phase6_train.py --base-model Qwen/Qwen2.5-0.5B-Instruct --output-dir artifacts/phase6/grpo_training --variants-per-task 8 --num-train-epochs 1 --num-generations 4 --bootstrap-auto
 ```
 
 What this does:
 
 - builds prompt-only train cases from the environment task bank
+- can first train a bootstrap SFT adapter under `bootstrap_sft/` and reuse it automatically
 - samples completions from the model instead of replaying teacher labels
 - scores each completion with `PhysioSupportEnv` through the real reward engine
 - updates the model with `TRL` `GRPOTrainer` against environment reward

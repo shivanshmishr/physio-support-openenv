@@ -23,6 +23,7 @@ dependencies = [
 server = "server.app:main"
 train-scaffold = "train_scaffold:main"
 evaluate-policy = "evaluate:main"
+phase55-bootstrap-sft = "phase55_bootstrap_sft:main"
 phase6-train = "phase6_train:main"
 demo-space = "demo_app:main"
 

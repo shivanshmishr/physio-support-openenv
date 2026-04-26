@@ -6,3 +6,5 @@ __pycache__/
 .vscode/
 artifacts/phase6/grpo_smoke/
 artifacts/phase6/grpo_training/
+artifacts/phase55/bootstrap_sft/
+artifacts/phase6/bootstrap_sft/
