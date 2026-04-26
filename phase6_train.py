@@ -395,14 +395,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--exact-action-bonus-scale",
         type=float,
-        default=0.08,
-        help="Extra shaped reward added when the chosen next_action matches the canonical truth action exactly.",
+        default=0.02,
+        help="Small shaped reward added when the chosen next_action matches the canonical truth action exactly.",
     )
     parser.add_argument(
         "--acceptable-action-penalty-scale",
         type=float,
-        default=0.03,
-        help="Small shaped penalty for choosing an acceptable fallback action instead of the canonical truth action.",
+        default=0.01,
+        help="Very small shaped penalty for choosing an acceptable fallback action instead of the canonical truth action.",
     )
     parser.add_argument(
         "--bootstrap-adapter-path",
