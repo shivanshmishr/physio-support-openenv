@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-04-26T10:31:16.391945+00:00",
+  "python_version": "3.10.11 (tags/v3.10.11:7d4cc5a, Apr  5 2023, 00:38:17) [MSC v.1929 64 bit (AMD64)]",
+  "platform": "Windows-10-10.0.26200-SP0",
+  "cwd": "C:\\Users\\91932\\OneDrive\\Desktop\\MetaHackathon",
+  "safe_env_files": [
+    "openenv.yaml",
+    "pyproject.toml",
+    "requirements.txt"
+  ],
+  "secret_files_excluded": [
+    ".env"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "id": "69ede555d2c8bd8662bcfc50",
+  "url": "https://huggingface.co/jobs/shivansh9987/69ede555d2c8bd8662bcfc50",
+  "created_at": "2026-04-26T10:13:41.826000+00:00",
+  "docker_image": "pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime",
+  "command": [
+    "/bin/bash",
+    "-lc",
+    "set -euxo pipefail\nmkdir -p /workspace\ncd /workspace\npython - <<'PY'\nimport os\nimport urllib.request\nimport zipfile\n\nurl = os.environ[\"HF_REPO_ZIP_URL\"]\nzip_path = \"/workspace/repo.zip\"\nurllib.request.urlretrieve(url, zip_path)\nwith zipfile.ZipFile(zip_path) as zf:\n    zf.extractall(\"/workspace\")\nPY\ncd /workspace/physio-support-openenv-main\npython - <<'PY'\nfrom pathlib import Path\n\nsrc = Path(\"requirements.txt\").read_text(encoding=\"utf-8\").splitlines()\nout = []\nfor line in src:\n    stripped = line.strip()\n    if not stripped or stripped.startswith(\"#\") or stripped.startswith(\"torch\"):\n        continue\n    out.append(line)\nPath(\"requirements_notorch.txt\").write_text(\"\\n\".join(out) + \"\\n\", encoding=\"utf-8\")\nPY\npython -c \"import torch; print('torch', torch.__version__, 'cuda', torch.cuda.is_available())\"\npython -m pip install --upgrade pip\npython -m pip install -r requirements_notorch.txt\npython phase6_train.py \\\n  --base-model Qwen/Qwen2.5-0.5B-Instruct \\\n  --output-dir artifacts/phase6/grpo_training_actionsafe \\\n  --variants-per-task 8 \\\n  --num-train-epochs 2 \\\n  --learning-rate 2e-6 \\\n  --max-completion-length 224 \\\n  --num-generations 6 \\\n  --temperature 0.7 \\\n  --top-p 0.9 \\\n  --reward-mode shaped \\\n  --summary-bonus-scale 0.12 \\\n  --reply-bonus-scale 0.06 \\\n  --exact-action-bonus-scale 0.02 \\\n  --acceptable-action-penalty-scale 0.01 \\\n  --bootstrap-auto \\\n  --bootstrap-training-data-mode hybrid \\\n  --bootstrap-teacher-min-score 0.8 \\\n  --bootstrap-teacher-max-penalties 0\npython - <<'PY'\nfrom pathlib import Path\nprint(Path(\"artifacts/phase6/grpo_training_actionsafe/training_summary.json\").read_text(encoding=\"utf-8\"))\nPY"
+  ],
+  "arguments": [],
+  "environment": {
+    "HF_REPO_ZIP_URL": "https://github.com/shivanshmishr/physio-support-openenv/archive/refs/heads/main.zip",
+    "PYTHONUNBUFFERED": "1"
+  },
+  "secrets": [
+    "HF_TOKEN"
+  ],
+  "flavor": "a10g-large",
+  "labels": {
+    "project": "physio-support-openenv",
+    "stage": "phase6",
+    "run": "grpo_training_actionsafe"
+  },
+  "status": {
+    "stage": "COMPLETED",
+    "message": null
+  },
+  "owner": {
+    "id": "69d103bea9acd1eb2622309c",
+    "name": "shivansh9987",
+    "type": "user"
+  },
+  "endpoint": "https://huggingface.co",
+  "note": "Current safer action-shaping run submitted from pushed main."
+}

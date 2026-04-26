@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420">
+  <rect width="100%" height="100%" fill="#ffffff" />
+  <text x="450.0" y="28" text-anchor="middle" font-size="20" font-family="Arial, sans-serif" fill="#0f172a">Training Loss</text>
+  <text x="24" y="210.0" transform="rotate(-90 24,210.0)" text-anchor="middle" font-size="14" font-family="Arial, sans-serif" fill="#334155">Loss</text>
+  <text x="470.0" y="408" text-anchor="middle" font-size="14" font-family="Arial, sans-serif" fill="#334155">Epoch</text>
+  <line x1="70" y1="370.0" x2="870" y2="370.0" stroke="#e2e8f0" stroke-width="1" />
+<line x1="70" y1="290.0" x2="870" y2="290.0" stroke="#e2e8f0" stroke-width="1" />
+<line x1="70" y1="210.0" x2="870" y2="210.0" stroke="#e2e8f0" stroke-width="1" />
+<line x1="70" y1="130.0" x2="870" y2="130.0" stroke="#e2e8f0" stroke-width="1" />
+<line x1="70" y1="50.0" x2="870" y2="50.0" stroke="#e2e8f0" stroke-width="1" />
+  <line x1="70" y1="50" x2="70" y2="370" stroke="#64748b" stroke-width="1.5" />
+  <line x1="70" y1="370" x2="870" y2="370" stroke="#64748b" stroke-width="1.5" />
+  <text x="58" y="374.0" text-anchor="end" font-size="12" fill="#475569">0.00</text>
+<text x="58" y="294.0" text-anchor="end" font-size="12" fill="#475569">0.25</text>
+<text x="58" y="214.0" text-anchor="end" font-size="12" fill="#475569">0.50</text>
+<text x="58" y="134.0" text-anchor="end" font-size="12" fill="#475569">0.75</text>
+<text x="58" y="54.0" text-anchor="end" font-size="12" fill="#475569">1.00</text>
+  <polyline fill="none" stroke="#0f766e" stroke-width="3" points="70.0,370.0 158.9,370.0 247.8,370.0 336.7,370.0 425.6,370.0 514.4,370.0 603.3,370.0 692.2,370.0 781.1,370.0 870.0,370.0" />
+</svg>

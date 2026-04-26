@@ -1,0 +1,32 @@
+{
+  "id": "69edd68fd2c8bd8662bcfaca",
+  "url": "https://huggingface.co/jobs/shivansh9987/69edd68fd2c8bd8662bcfaca",
+  "created_at": "2026-04-26T09:10:39.415000+00:00",
+  "docker_image": "pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime",
+  "command": [
+    "/bin/bash",
+    "-lc",
+    "set -euxo pipefail\nmkdir -p /workspace\ncd /workspace\npython - <<'PY'\nimport os\nimport urllib.request\nimport zipfile\nurl = os.environ['HF_REPO_ZIP_URL']\nzip_path = '/workspace/repo.zip'\nurllib.request.urlretrieve(url, zip_path)\nwith zipfile.ZipFile(zip_path) as zf:\n    zf.extractall('/workspace')\nPY\ncd /workspace/physio-support-openenv-main\npython - <<'PY'\nfrom pathlib import Path\nsrc = Path('requirements.txt').read_text(encoding='utf-8').splitlines()\nout = []\nfor line in src:\n    stripped = line.strip()\n    if not stripped or stripped.startswith('#') or stripped.startswith('torch'):\n        continue\n    out.append(line)\nPath('requirements_notorch.txt').write_text('\\n'.join(out) + '\\n', encoding='utf-8')\nPY\npython -c \"import torch; print('torch', torch.__version__, 'cuda', torch.cuda.is_available())\"\npython -m pip install --upgrade pip\npython -m pip install -r requirements_notorch.txt\npython phase6_train.py --base-model Qwen/Qwen2.5-0.5B-Instruct --output-dir artifacts/phase6/grpo_training_shaped_hybrid --variants-per-task 8 --num-train-epochs 2 --learning-rate 2e-6 --max-completion-length 224 --num-generations 6 --temperature 0.7 --top-p 0.9 --reward-mode shaped --summary-bonus-scale 0.12 --reply-bonus-scale 0.06 --bootstrap-auto --bootstrap-training-data-mode hybrid --bootstrap-teacher-min-score 0.8 --bootstrap-teacher-max-penalties 0\npython - <<'PY'\nfrom pathlib import Path\nprint(Path('artifacts/phase6/grpo_training_shaped_hybrid/training_summary.json').read_text(encoding='utf-8'))\nPY"
+  ],
+  "arguments": [],
+  "environment": {
+    "HF_REPO_ZIP_URL": "https://github.com/shivanshmishr/physio-support-openenv/archive/refs/heads/main.zip",
+    "PYTHONUNBUFFERED": "1"
+  },
+  "secrets": [
+    "HF_TOKEN"
+  ],
+  "flavor": "a10g-large",
+  "labels": {},
+  "status": {
+    "stage": "COMPLETED",
+    "message": null
+  },
+  "owner": {
+    "id": "69d103bea9acd1eb2622309c",
+    "name": "shivansh9987",
+    "type": "user"
+  },
+  "endpoint": "https://huggingface.co",
+  "note": "Earlier shaped-hybrid run discussed during tuning."
+}

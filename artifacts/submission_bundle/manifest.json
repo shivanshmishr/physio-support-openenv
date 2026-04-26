@@ -1,0 +1,148 @@
+{
+  "generated_at": "2026-04-26T10:31:26.529199+00:00",
+  "bundle_dir": "C:\\Users\\91932\\OneDrive\\Desktop\\MetaHackathon\\artifacts\\submission_bundle",
+  "copied_items": [
+    {
+      "path": "README.md",
+      "type": "file",
+      "sha256": "9729a6b12374ae0fa284c025de061e8f453cc501724d9ba77742fee6642e1b00",
+      "bytes": 11629
+    },
+    {
+      "path": "openenv.yaml",
+      "type": "file",
+      "sha256": "54c33fef561c3f3af6abb8e3130e5b648e44bf83507359ab1742bd2e08c86759",
+      "bytes": 373
+    },
+    {
+      "path": "pyproject.toml",
+      "type": "file",
+      "sha256": "07cb794f07e239f4509d67fb628a09a8ee1e22753f05a90efe7ec286ea6ce15d",
+      "bytes": 827
+    },
+    {
+      "path": "requirements.txt",
+      "type": "file",
+      "sha256": "96bd6404d86ff57e74503d7498caf92547c94314ffa6401f6f22465e107e613d",
+      "bytes": 227
+    },
+    {
+      "path": "phase55_bootstrap_sft.py",
+      "type": "file",
+      "sha256": "96ace24503eb03589818f929b08040f39d9df5a25bbf84ca5f71d318f4daac9e",
+      "bytes": 5368
+    },
+    {
+      "path": "phase6_train.py",
+      "type": "file",
+      "sha256": "3fe51d2e574aa93732f5223515bb7308cd48ab325d9ee479c1049d169362727e",
+      "bytes": 20672
+    },
+    {
+      "path": "warmup_sft.py",
+      "type": "file",
+      "sha256": "11a7248f25241209c805c18d805b8007d71dfd681c5768ea4d9184115de9e1dd",
+      "bytes": 13875
+    },
+    {
+      "path": "train_scaffold.py",
+      "type": "file",
+      "sha256": "2e1375569cbf1faa2331244d0725fb30683fe5841c1fc6e2c6e679ddfe6a5e1f",
+      "bytes": 10465
+    },
+    {
+      "path": "evaluate.py",
+      "type": "file",
+      "sha256": "e1ac5667cd7e87d9eb06e69446f9e17f12501be21af3d1226b09d9e7a289b5d4",
+      "bytes": 6071
+    },
+    {
+      "path": "inference.py",
+      "type": "file",
+      "sha256": "5bbcce5e61a3f1c20ede4496300c99b065d0b266d100d189b0c67938668321b7",
+      "bytes": 4681
+    },
+    {
+      "path": "app/env.py",
+      "type": "file",
+      "sha256": "5ad163f6d310447bd196e84628acd905a34c2a78f1cc3ebd3b79547d85a4778e",
+      "bytes": 8415
+    },
+    {
+      "path": "app/prompting.py",
+      "type": "file",
+      "sha256": "81dd4bee12804ac706e14c5c92694a1eae379a6d4897971535e1c13d5a965190",
+      "bytes": 4392
+    },
+    {
+      "path": "app/rl_training.py",
+      "type": "file",
+      "sha256": "c4f4000ba4eada8606bab9d3a7140c1bfbdea97574ae88839c0cb82409f64c6e",
+      "bytes": 6755
+    },
+    {
+      "path": "app/structured_output.py",
+      "type": "file",
+      "sha256": "72abe5ba59699324d754a8ea6ea21a1f4d1336eda8117c7fa8914ed845e31c3e",
+      "bytes": 10040
+    },
+    {
+      "path": "app/training_data.py",
+      "type": "file",
+      "sha256": "d507b2c5f082918280ac8851740843275dde8689df1e6da462a8699de35aaa53",
+      "bytes": 6509
+    },
+    {
+      "path": "artifacts/phase6/final_results",
+      "type": "directory"
+    },
+    {
+      "path": "artifacts/phase6/grpo_smoke",
+      "type": "directory"
+    },
+    {
+      "path": "artifacts/phase6/training_smoke",
+      "type": "directory"
+    },
+    {
+      "path": "artifacts/phase6/actionsafe_hf_job.md",
+      "type": "file",
+      "sha256": "f2392202136ae6980f7bf4feeee95e8b191026840f1e69cd602b2e8a9a0e6f5e",
+      "bytes": 2116
+    },
+    {
+      "path": "artifacts/phase4/heuristic_baseline",
+      "type": "directory"
+    }
+  ],
+  "hf_jobs": [
+    {
+      "name": "phase6_no_upload_v2",
+      "job_id": "69ecb239d70108f37acde5a1",
+      "status": "COMPLETED",
+      "url": "https://huggingface.co/jobs/shivansh9987/69ecb239d70108f37acde5a1",
+      "bundle_dir": "hf_jobs\\phase6_no_upload_v2_69ecb239d70108f37acde5a1"
+    },
+    {
+      "name": "phase6_shaped_hybrid",
+      "job_id": "69edd68fd2c8bd8662bcfaca",
+      "status": "COMPLETED",
+      "url": "https://huggingface.co/jobs/shivansh9987/69edd68fd2c8bd8662bcfaca",
+      "bundle_dir": "hf_jobs\\phase6_shaped_hybrid_69edd68fd2c8bd8662bcfaca"
+    },
+    {
+      "name": "phase6_actionpush_regression",
+      "job_id": "69eddd24d70108f37acdffd7",
+      "status": "COMPLETED",
+      "url": "https://huggingface.co/jobs/shivansh9987/69eddd24d70108f37acdffd7",
+      "bundle_dir": "hf_jobs\\phase6_actionpush_regression_69eddd24d70108f37acdffd7"
+    },
+    {
+      "name": "phase6_actionsafe",
+      "job_id": "69ede555d2c8bd8662bcfc50",
+      "status": "COMPLETED",
+      "url": "https://huggingface.co/jobs/shivansh9987/69ede555d2c8bd8662bcfc50",
+      "bundle_dir": "hf_jobs\\phase6_actionsafe_69ede555d2c8bd8662bcfc50"
+    }
+  ]
+}

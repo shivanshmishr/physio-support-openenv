@@ -1,0 +1,136 @@
+{
+  "training_type": "grpo_env_reward",
+  "output_dir": "artifacts/phase6/grpo_smoke",
+  "base_model": "sshleifer/tiny-gpt2",
+  "adapter_path": "artifacts/phase6/grpo_smoke",
+  "bootstrap_adapter_path": "",
+  "reward_mode": "raw",
+  "variants_per_task": 2,
+  "train_case_count": 5,
+  "eval_case_count": 5,
+  "split_summary": {
+    "base_task_count": 5,
+    "train_case_count": 5,
+    "eval_case_count": 5,
+    "task_families": [
+      "booking",
+      "callback",
+      "priority_pain",
+      "rescheduling"
+    ],
+    "train_by_family": {
+      "booking": 1,
+      "callback": 1,
+      "priority_pain": 2,
+      "rescheduling": 1
+    },
+    "eval_by_family": {
+      "booking": 1,
+      "callback": 1,
+      "priority_pain": 2,
+      "rescheduling": 1
+    },
+    "train_base_task_ids": [
+      "booking_standard_post_op",
+      "callback_worsening_pain",
+      "mixed_intent_priority_reschedule",
+      "priority_severe_pain_emergency",
+      "reschedule_caregiver_access"
+    ],
+    "eval_base_task_ids": [
+      "booking_standard_post_op",
+      "callback_worsening_pain",
+      "mixed_intent_priority_reschedule",
+      "priority_severe_pain_emergency",
+      "reschedule_caregiver_access"
+    ]
+  },
+  "baseline_metrics": {
+    "num_cases": 5,
+    "avg_reward": -0.6,
+    "avg_score": 0.1,
+    "intent_accuracy": 0.0,
+    "risk_accuracy": 0.0,
+    "action_accuracy": 0.0,
+    "callback_correctness": 0.0,
+    "priority_pain_recall": 0.0,
+    "unsafe_action_rate": 1.0,
+    "summary_completeness": 0.0,
+    "component_averages": {
+      "action_correctness": 0.0,
+      "escalation_correctness": 0.0,
+      "intent_correctness": 0.0,
+      "logistics_validity": 0.0,
+      "patient_reply_quality": 0.0,
+      "policy_compliance": 0.0,
+      "risk_classification_correctness": 0.0,
+      "summary_completeness": 0.0
+    }
+  },
+  "trained_metrics": {
+    "num_cases": 5,
+    "avg_reward": -0.6,
+    "avg_score": 0.1,
+    "intent_accuracy": 0.0,
+    "risk_accuracy": 0.0,
+    "action_accuracy": 0.0,
+    "callback_correctness": 0.0,
+    "priority_pain_recall": 0.0,
+    "unsafe_action_rate": 1.0,
+    "summary_completeness": 0.0,
+    "component_averages": {
+      "action_correctness": 0.0,
+      "escalation_correctness": 0.0,
+      "intent_correctness": 0.0,
+      "logistics_validity": 0.0,
+      "patient_reply_quality": 0.0,
+      "policy_compliance": 0.0,
+      "risk_classification_correctness": 0.0,
+      "summary_completeness": 0.0
+    }
+  },
+  "heuristic_metrics": {
+    "num_cases": 5,
+    "avg_reward": 0.9605,
+    "avg_score": 0.9,
+    "intent_accuracy": 0.6,
+    "risk_accuracy": 1.0,
+    "action_accuracy": 0.8,
+    "callback_correctness": 1.0,
+    "priority_pain_recall": 1.0,
+    "unsafe_action_rate": 0.0,
+    "summary_completeness": 0.64,
+    "component_averages": {
+      "action_correctness": 0.236,
+      "escalation_correctness": 0.1,
+      "intent_correctness": 0.15,
+      "logistics_validity": 0.1,
+      "patient_reply_quality": 0.0425,
+      "policy_compliance": 0.1,
+      "risk_classification_correctness": 0.2,
+      "summary_completeness": 0.032
+    }
+  },
+  "improvement": {
+    "avg_reward": 0.0,
+    "avg_score": 0.0,
+    "intent_accuracy": 0.0,
+    "risk_accuracy": 0.0,
+    "action_accuracy": 0.0,
+    "callback_correctness": 0.0,
+    "priority_pain_recall": 0.0,
+    "unsafe_action_rate": 0.0,
+    "summary_completeness": 0.0
+  },
+  "gap_to_teacher": {
+    "avg_reward": 1.5605,
+    "avg_score": 0.8,
+    "intent_accuracy": 0.6,
+    "risk_accuracy": 1.0,
+    "action_accuracy": 0.8,
+    "callback_correctness": 1.0,
+    "priority_pain_recall": 1.0,
+    "unsafe_action_rate": -1.0,
+    "summary_completeness": 0.64
+  }
+}

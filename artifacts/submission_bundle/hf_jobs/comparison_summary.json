@@ -1,0 +1,58 @@
+[
+  {
+    "label": "phase6_shaped_hybrid",
+    "job_dir": "phase6_shaped_hybrid_69edd68fd2c8bd8662bcfaca",
+    "avg_reward": 0.844,
+    "avg_score": 0.7131666666666666,
+    "intent_accuracy": 0.8,
+    "risk_accuracy": 0.8,
+    "action_accuracy": 0.6,
+    "priority_pain_recall": 1.0,
+    "unsafe_action_rate": 0.0,
+    "summary_completeness": 0.48,
+    "improvement_avg_score": 0.16133333333333333,
+    "improvement_action_accuracy": 0.0
+  },
+  {
+    "label": "phase6_actionpush_regression",
+    "job_dir": "phase6_actionpush_regression_69eddd24d70108f37acdffd7",
+    "avg_reward": 0.8463333333333333,
+    "avg_score": 0.7095,
+    "intent_accuracy": 0.7333333333333333,
+    "risk_accuracy": 0.8,
+    "action_accuracy": 0.6,
+    "priority_pain_recall": 1.0,
+    "unsafe_action_rate": 0.0,
+    "summary_completeness": 0.6,
+    "improvement_avg_score": -0.09299999999999997,
+    "improvement_action_accuracy": -0.1333333333333333
+  },
+  {
+    "label": "phase6_actionsafe",
+    "job_dir": "phase6_actionsafe_69ede555d2c8bd8662bcfc50",
+    "avg_reward": 0.846,
+    "avg_score": 0.7076666666666667,
+    "intent_accuracy": 0.6666666666666666,
+    "risk_accuracy": 0.8,
+    "action_accuracy": 0.6,
+    "priority_pain_recall": 1.0,
+    "unsafe_action_rate": 0.0,
+    "summary_completeness": 0.5933333333333333,
+    "improvement_avg_score": -0.09483333333333333,
+    "improvement_action_accuracy": -0.1333333333333333
+  },
+  {
+    "label": "local_final_results",
+    "job_dir": "artifacts/phase6/final_results",
+    "avg_reward": 0.79575,
+    "avg_score": 0.75975,
+    "intent_accuracy": 0.8,
+    "risk_accuracy": 1.0,
+    "action_accuracy": 0.7,
+    "priority_pain_recall": 1.0,
+    "unsafe_action_rate": 0.0,
+    "summary_completeness": 0.27999999999999997,
+    "improvement_avg_score": 0.19625000000000004,
+    "improvement_action_accuracy": 0.09999999999999998
+  }
+]

@@ -1,0 +1,30 @@
+[
+  {
+    "name": "phase6_no_upload_v2",
+    "job_id": "69ecb239d70108f37acde5a1",
+    "status": "COMPLETED",
+    "url": "https://huggingface.co/jobs/shivansh9987/69ecb239d70108f37acde5a1",
+    "bundle_dir": "hf_jobs\\phase6_no_upload_v2_69ecb239d70108f37acde5a1"
+  },
+  {
+    "name": "phase6_shaped_hybrid",
+    "job_id": "69edd68fd2c8bd8662bcfaca",
+    "status": "COMPLETED",
+    "url": "https://huggingface.co/jobs/shivansh9987/69edd68fd2c8bd8662bcfaca",
+    "bundle_dir": "hf_jobs\\phase6_shaped_hybrid_69edd68fd2c8bd8662bcfaca"
+  },
+  {
+    "name": "phase6_actionpush_regression",
+    "job_id": "69eddd24d70108f37acdffd7",
+    "status": "COMPLETED",
+    "url": "https://huggingface.co/jobs/shivansh9987/69eddd24d70108f37acdffd7",
+    "bundle_dir": "hf_jobs\\phase6_actionpush_regression_69eddd24d70108f37acdffd7"
+  },
+  {
+    "name": "phase6_actionsafe",
+    "job_id": "69ede555d2c8bd8662bcfc50",
+    "status": "COMPLETED",
+    "url": "https://huggingface.co/jobs/shivansh9987/69ede555d2c8bd8662bcfc50",
+    "bundle_dir": "hf_jobs\\phase6_actionsafe_69ede555d2c8bd8662bcfc50"
+  }
+]

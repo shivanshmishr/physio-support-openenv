@@ -1,0 +1,32 @@
+[project]
+name = "physiosupportenv"
+version = "0.1.0"
+description = "OpenEnv-style physiotherapy support environment"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.7.0,<3.0.0",
+    "openai>=2.7.2,<3.0.0",
+    "fastapi>=0.110.0,<1.0.0",
+    "uvicorn>=0.29.0,<1.0.0",
+    "openenv-core>=0.2.1",
+    "torch>=2.2.0",
+    "transformers>=4.51.0",
+    "datasets>=2.19.0",
+    "peft>=0.17.0",
+    "trl>=0.20.0",
+    "accelerate>=0.34.0",
+    "gradio>=5.0.0,<6.0.0",
+]
+
+[project.scripts]
+server = "server.app:main"
+train-scaffold = "train_scaffold:main"
+evaluate-policy = "evaluate:main"
+phase55-bootstrap-sft = "phase55_bootstrap_sft:main"
+phase6-train = "phase6_train:main"
+demo-space = "demo_app:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

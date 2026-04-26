@@ -1,0 +1,37 @@
+{
+  "base_task_count": 5,
+  "train_case_count": 20,
+  "eval_case_count": 10,
+  "task_families": [
+    "booking",
+    "callback",
+    "priority_pain",
+    "rescheduling"
+  ],
+  "train_by_family": {
+    "booking": 4,
+    "callback": 4,
+    "priority_pain": 8,
+    "rescheduling": 4
+  },
+  "eval_by_family": {
+    "booking": 2,
+    "callback": 2,
+    "priority_pain": 4,
+    "rescheduling": 2
+  },
+  "train_base_task_ids": [
+    "booking_standard_post_op",
+    "callback_worsening_pain",
+    "mixed_intent_priority_reschedule",
+    "priority_severe_pain_emergency",
+    "reschedule_caregiver_access"
+  ],
+  "eval_base_task_ids": [
+    "booking_standard_post_op",
+    "callback_worsening_pain",
+    "mixed_intent_priority_reschedule",
+    "priority_severe_pain_emergency",
+    "reschedule_caregiver_access"
+  ]
+}

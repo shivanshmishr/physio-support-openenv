@@ -1,0 +1,166 @@
+{
+  "training_type": "grpo_env_reward",
+  "output_dir": "artifacts/phase6/grpo_training_actionsafe",
+  "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "adapter_path": "artifacts/phase6/grpo_training_actionsafe",
+  "bootstrap_adapter_path": "artifacts/phase6/grpo_training_actionsafe/bootstrap_sft",
+  "bootstrap_auto": true,
+  "reward_mode": "shaped",
+  "summary_bonus_scale": 0.12,
+  "reply_bonus_scale": 0.06,
+  "exact_action_bonus_scale": 0.02,
+  "acceptable_action_penalty_scale": 0.01,
+  "variants_per_task": 8,
+  "train_case_count": 25,
+  "eval_case_count": 15,
+  "split_summary": {
+    "base_task_count": 5,
+    "train_case_count": 25,
+    "eval_case_count": 15,
+    "task_families": [
+      "booking",
+      "callback",
+      "priority_pain",
+      "rescheduling"
+    ],
+    "train_by_family": {
+      "booking": 5,
+      "callback": 5,
+      "priority_pain": 10,
+      "rescheduling": 5
+    },
+    "eval_by_family": {
+      "booking": 3,
+      "callback": 3,
+      "priority_pain": 6,
+      "rescheduling": 3
+    },
+    "train_base_task_ids": [
+      "booking_standard_post_op",
+      "callback_worsening_pain",
+      "mixed_intent_priority_reschedule",
+      "priority_severe_pain_emergency",
+      "reschedule_caregiver_access"
+    ],
+    "eval_base_task_ids": [
+      "booking_standard_post_op",
+      "callback_worsening_pain",
+      "mixed_intent_priority_reschedule",
+      "priority_severe_pain_emergency",
+      "reschedule_caregiver_access"
+    ]
+  },
+  "baseline_metrics": {
+    "num_cases": 15,
+    "avg_reward": 0.842,
+    "avg_score": 0.8025,
+    "intent_accuracy": 0.4666666666666667,
+    "risk_accuracy": 0.9333333333333333,
+    "action_accuracy": 0.7333333333333333,
+    "callback_correctness": 1.0,
+    "priority_pain_recall": 1.0,
+    "unsafe_action_rate": 0.0,
+    "summary_completeness": 0.62,
+    "component_averages": {
+      "action_correctness": 0.23133333333333334,
+      "escalation_correctness": 0.1,
+      "intent_correctness": 0.15,
+      "logistics_validity": 0.1,
+      "patient_reply_quality": 0.021666666666666667,
+      "policy_compliance": 0.1,
+      "risk_classification_correctness": 0.196,
+      "summary_completeness": 0.031
+    }
+  },
+  "trained_metrics": {
+    "num_cases": 15,
+    "avg_reward": 0.846,
+    "avg_score": 0.7076666666666667,
+    "intent_accuracy": 0.6666666666666666,
+    "risk_accuracy": 0.8,
+    "action_accuracy": 0.6,
+    "callback_correctness": 1.0,
+    "priority_pain_recall": 1.0,
+    "unsafe_action_rate": 0.0,
+    "summary_completeness": 0.5933333333333333,
+    "component_averages": {
+      "action_correctness": 0.222,
+      "escalation_correctness": 0.1,
+      "intent_correctness": 0.15,
+      "logistics_validity": 0.1,
+      "patient_reply_quality": 0.028333333333333335,
+      "policy_compliance": 0.1,
+      "risk_classification_correctness": 0.188,
+      "summary_completeness": 0.029666666666666668
+    }
+  },
+  "heuristic_metrics": {
+    "num_cases": 15,
+    "avg_reward": 0.9605,
+    "avg_score": 0.9,
+    "intent_accuracy": 0.6,
+    "risk_accuracy": 1.0,
+    "action_accuracy": 0.8,
+    "callback_correctness": 1.0,
+    "priority_pain_recall": 1.0,
+    "unsafe_action_rate": 0.0,
+    "summary_completeness": 0.64,
+    "component_averages": {
+      "action_correctness": 0.236,
+      "escalation_correctness": 0.1,
+      "intent_correctness": 0.15,
+      "logistics_validity": 0.1,
+      "patient_reply_quality": 0.0425,
+      "policy_compliance": 0.1,
+      "risk_classification_correctness": 0.2,
+      "summary_completeness": 0.032
+    }
+  },
+  "improvement": {
+    "avg_reward": 0.0040000000000000036,
+    "avg_score": -0.09483333333333333,
+    "intent_accuracy": 0.19999999999999996,
+    "risk_accuracy": -0.1333333333333333,
+    "action_accuracy": -0.1333333333333333,
+    "callback_correctness": 0.0,
+    "priority_pain_recall": 0.0,
+    "unsafe_action_rate": 0.0,
+    "summary_completeness": -0.026666666666666727
+  },
+  "gap_to_teacher": {
+    "avg_reward": 0.11450000000000005,
+    "avg_score": 0.19233333333333336,
+    "intent_accuracy": -0.06666666666666665,
+    "risk_accuracy": 0.19999999999999996,
+    "action_accuracy": 0.20000000000000007,
+    "callback_correctness": 0.0,
+    "priority_pain_recall": 0.0,
+    "unsafe_action_rate": 0.0,
+    "summary_completeness": 0.046666666666666745
+  },
+  "bootstrap_summary": {
+    "training_type": "bootstrap_sft",
+    "output_dir": "artifacts/phase6/grpo_training_actionsafe/bootstrap_sft",
+    "adapter_path": "artifacts/phase6/grpo_training_actionsafe/bootstrap_sft",
+    "train_case_count": 50,
+    "eval_case_count": 15,
+    "schema_improvement": {
+      "schema_valid_rate": 0.0,
+      "required_keys_rate": 0.0,
+      "allowed_action_rate": 0.0,
+      "secondary_actions_rate": 0.0,
+      "avg_score_on_valid": 0.033666666666666734,
+      "avg_reward_on_valid": 0.054333333333333345
+    },
+    "trained_schema_metrics": {
+      "num_cases": 15,
+      "schema_valid_rate": 1.0,
+      "required_keys_rate": 1.0,
+      "allowed_action_rate": 1.0,
+      "secondary_actions_rate": 1.0,
+      "avg_score_on_valid": 0.7216666666666667,
+      "avg_reward_on_valid": 0.8671666666666666,
+      "invalid_case_count": 0
+    }
+  }
+}
