@@ -40,6 +40,7 @@ def schema_example() -> dict:
 
 
 def build_user_prompt(observation: dict) -> str:
+    policy_hint = _primary_action_hint(observation)
     return (
         "Produce one structured care-coordination decision for this case.\n"
         "Return JSON only.\n"
@@ -48,8 +49,29 @@ def build_user_prompt(observation: dict) -> str:
         f"Observation: {json.dumps(observation, ensure_ascii=True)}\n"
         f"Allowed actions: {json.dumps(observation.get('allowed_actions', []), ensure_ascii=True)}\n"
         "Choose the safest operational next step, then make the reply and internal summary consistent with it.\n"
-        "The therapist_summary should read like an internal operational handoff, not a generic sentence."
+        "The therapist_summary should read like an internal operational handoff, not a generic sentence.\n"
+        f"Primary action policy hint: {policy_hint}"
     )
+
+
+def _primary_action_hint(observation: dict) -> str:
+    task_family = observation.get("task_family", "")
+    if task_family == "callback":
+        return (
+            "Prefer schedule_callback as the main action for worsening-pain callback requests. "
+            "Use priority_callback only when the symptoms are clearly urgent."
+        )
+    if task_family == "rescheduling":
+        return (
+            "If the patient requests a direct move because of a temporary caregiver or access blocker, "
+            "prefer reschedule_home_visit over softer alternatives."
+        )
+    if task_family == "priority_pain":
+        return (
+            "When pain escalation and logistics appear together, use priority callback or emergency escalation as the primary action. "
+            "Put visit-plan changes into secondary_actions."
+        )
+    return "Prefer the exact safest operational action from allowed_actions, not a softer fallback."
 
 
 def build_messages(observation: dict, assistant_response: dict | None = None) -> list[dict[str, str]]:

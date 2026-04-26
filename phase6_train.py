@@ -34,6 +34,8 @@ def run_phase6_training(
     reward_mode: str,
     summary_bonus_scale: float,
     reply_bonus_scale: float,
+    exact_action_bonus_scale: float,
+    acceptable_action_penalty_scale: float,
     bootstrap_adapter_path: str,
     bootstrap_auto: bool,
     bootstrap_output_dir: str,
@@ -164,6 +166,8 @@ def run_phase6_training(
             reward_mode=reward_mode,
             summary_bonus_scale=summary_bonus_scale,
             reply_bonus_scale=reply_bonus_scale,
+            exact_action_bonus_scale=exact_action_bonus_scale,
+            acceptable_action_penalty_scale=acceptable_action_penalty_scale,
         ),
         "train_dataset": Dataset.from_list(train_rows),
     }
@@ -205,6 +209,8 @@ def run_phase6_training(
         "reward_mode": reward_mode,
         "summary_bonus_scale": summary_bonus_scale,
         "reply_bonus_scale": reply_bonus_scale,
+        "exact_action_bonus_scale": exact_action_bonus_scale,
+        "acceptable_action_penalty_scale": acceptable_action_penalty_scale,
         "variants_per_task": variants_per_task,
         "train_case_count": len(train_rows),
         "eval_case_count": len(eval_tasks),
@@ -387,6 +393,18 @@ def parse_args() -> argparse.Namespace:
         help="Extra shaped reward added when patient_reply is aligned, safe, and concise.",
     )
     parser.add_argument(
+        "--exact-action-bonus-scale",
+        type=float,
+        default=0.08,
+        help="Extra shaped reward added when the chosen next_action matches the canonical truth action exactly.",
+    )
+    parser.add_argument(
+        "--acceptable-action-penalty-scale",
+        type=float,
+        default=0.03,
+        help="Small shaped penalty for choosing an acceptable fallback action instead of the canonical truth action.",
+    )
+    parser.add_argument(
         "--bootstrap-adapter-path",
         type=str,
         default="",
@@ -462,6 +480,8 @@ def main() -> None:
         reward_mode=args.reward_mode,
         summary_bonus_scale=args.summary_bonus_scale,
         reply_bonus_scale=args.reply_bonus_scale,
+        exact_action_bonus_scale=args.exact_action_bonus_scale,
+        acceptable_action_penalty_scale=args.acceptable_action_penalty_scale,
         bootstrap_adapter_path=args.bootstrap_adapter_path,
         bootstrap_auto=args.bootstrap_auto,
         bootstrap_output_dir=args.bootstrap_output_dir,

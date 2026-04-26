@@ -116,9 +116,10 @@ def normalize_submission_payload(payload: dict, observation: dict) -> dict:
     normalized = dict(payload)
     message = observation.get("patient_message", "").lower()
     allowed_actions = set(observation.get("allowed_actions", []))
+    task_family = observation.get("task_family", "")
 
     normalized["secondary_actions"] = _normalize_secondary_actions(normalized.get("secondary_actions"))
-    normalized["next_action"] = _normalize_next_action(normalized.get("next_action"), allowed_actions, message)
+    normalized["next_action"] = _normalize_next_action(normalized.get("next_action"), allowed_actions, message, task_family)
     normalized["risk_level"] = _normalize_risk_level(normalized.get("risk_level"), normalized["next_action"], message)
     normalized["intent"] = _normalize_intent(normalized.get("intent"), normalized["next_action"], message)
     normalized.setdefault("patient_reply", "")
@@ -135,19 +136,35 @@ def _normalize_secondary_actions(value) -> list[str]:
     return []
 
 
-def _normalize_next_action(value, allowed_actions: set[str], message: str) -> str:
+def _normalize_next_action(value, allowed_actions: set[str], message: str, task_family: str) -> str:
     if isinstance(value, str):
         candidate = _NEXT_ACTION_ALIASES.get(value.strip(), value.strip())
         if candidate in allowed_actions:
             return candidate
 
-    if "escalate_for_emergency_attention" in allowed_actions and any(
-        token in message for token in ["emergency", "extreme pain", "chest tightness", "urgent help right now"]
-    ):
+    has_critical = any(token in message for token in ["emergency", "extreme pain", "chest tightness", "urgent help right now"])
+    has_pain = any(token in message for token in ["pain", "worsening", "8 out of 10", "severe"])
+    has_callback = any(token in message for token in ["call", "callback"])
+    has_reschedule = any(token in message for token in ["reschedule", "move it", "move tomorrow's", "tomorrow afternoon"])
+
+    if "escalate_for_emergency_attention" in allowed_actions and has_critical:
         return "escalate_for_emergency_attention"
-    if "priority_callback" in allowed_actions and any(token in message for token in ["pain", "worsening", "8 out of 10", "severe"]):
+
+    if task_family == "callback" and "schedule_callback" in allowed_actions:
+        if has_callback:
+            return "schedule_callback"
+        if has_pain and "priority_callback" in allowed_actions:
+            return "priority_callback"
+
+    if task_family == "rescheduling" and "reschedule_home_visit" in allowed_actions and has_reschedule:
+        return "reschedule_home_visit"
+
+    if task_family == "priority_pain" and "priority_callback" in allowed_actions and (has_pain or has_callback):
         return "priority_callback"
-    if "schedule_callback" in allowed_actions and any(token in message for token in ["call", "callback"]):
+
+    if "priority_callback" in allowed_actions and has_pain:
+        return "priority_callback"
+    if "schedule_callback" in allowed_actions and has_callback:
         return "schedule_callback"
     if "reschedule_home_visit" in allowed_actions and any(
         token in message for token in ["reschedule", "move it", "caregiver", "lift is out", "stairs"]

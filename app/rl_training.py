@@ -33,10 +33,12 @@ def write_jsonl(path: str, rows: list[dict]) -> None:
 def score_completion_text(task: dict, observation: dict, completion_text: str) -> dict:
     env = PhysioSupportEnv(task=deepcopy(task))
     env.reset_dict()
+    chosen_next_action = None
 
     try:
         action_input: dict[str, Any] = extract_json_object(completion_text)
         action_input = validate_submission_payload(action_input, observation)
+        chosen_next_action = action_input.get("next_action")
     except Exception:
         action_input = {"raw_completion": completion_text}
 
@@ -50,6 +52,7 @@ def score_completion_text(task: dict, observation: dict, completion_text: str) -
         "unsafe": bool(info.get("unsafe", False)),
         "penalties": list(info.get("penalties", [])),
         "breakdown": dict(info.get("breakdown", {})),
+        "chosen_next_action": chosen_next_action,
     }
 
 
@@ -58,6 +61,8 @@ class EnvironmentRewardFunction:
     reward_mode: str = "raw"
     summary_bonus_scale: float = 0.0
     reply_bonus_scale: float = 0.0
+    exact_action_bonus_scale: float = 0.0
+    acceptable_action_penalty_scale: float = 0.0
 
     def __post_init__(self) -> None:
         self.__name__ = f"environment_reward_{self.reward_mode}"
@@ -73,7 +78,17 @@ class EnvironmentRewardFunction:
             )
             completion_text = _completion_to_text(completion)
             result = score_completion_text(task, observation, completion_text)
-            rewards.append(_select_reward_value(result, self.reward_mode, self.summary_bonus_scale, self.reply_bonus_scale))
+            rewards.append(
+                _select_reward_value(
+                    task,
+                    result,
+                    self.reward_mode,
+                    self.summary_bonus_scale,
+                    self.reply_bonus_scale,
+                    self.exact_action_bonus_scale,
+                    self.acceptable_action_penalty_scale,
+                )
+            )
         return rewards
 
 
@@ -117,10 +132,13 @@ def _completion_to_text(completion: Any) -> str:
 
 
 def _select_reward_value(
+    task: dict,
     result: dict,
     reward_mode: str,
     summary_bonus_scale: float,
     reply_bonus_scale: float,
+    exact_action_bonus_scale: float,
+    acceptable_action_penalty_scale: float,
 ) -> float:
     if reward_mode == "raw":
         return float(result["raw_reward"])
@@ -137,6 +155,7 @@ def _select_reward_value(
     summary_ratio = _safe_component_ratio(breakdown.get("summary_completeness", 0.0), 0.05)
     reply_ratio = _safe_component_ratio(breakdown.get("patient_reply_quality", 0.0), 0.05)
     shaped_score = base_score + (summary_ratio * summary_bonus_scale) + (reply_ratio * reply_bonus_scale)
+    shaped_score += _primary_action_adjustment(task, result, exact_action_bonus_scale, acceptable_action_penalty_scale)
     return max(0.0, min(1.0, shaped_score))
 
 
@@ -144,3 +163,24 @@ def _safe_component_ratio(value: float, max_value: float) -> float:
     if max_value <= 0:
         return 0.0
     return max(0.0, min(1.0, float(value) / max_value))
+
+
+def _primary_action_adjustment(
+    task: dict,
+    result: dict,
+    exact_action_bonus_scale: float,
+    acceptable_action_penalty_scale: float,
+) -> float:
+    chosen_action = result.get("chosen_next_action")
+    if not chosen_action:
+        return 0.0
+
+    truth = task.get("truth", {})
+    canonical_action = truth.get("next_action")
+    acceptable_actions = set(truth.get("acceptable_actions", []))
+
+    if chosen_action == canonical_action:
+        return exact_action_bonus_scale
+    if chosen_action in acceptable_actions:
+        return -acceptable_action_penalty_scale
+    return 0.0
