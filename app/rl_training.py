@@ -7,8 +7,8 @@ from typing import Any
 
 from app.env import PhysioSupportEnv
 from app.grader import grade_episode
-from app.prompting import render_plain_prompt
-from app.structured_output import extract_json_object
+from app.prompting import build_messages
+from app.structured_output import extract_json_object, validate_submission_payload
 from app.training_data import build_sft_splits, build_split_summary
 
 
@@ -30,12 +30,13 @@ def write_jsonl(path: str, rows: list[dict]) -> None:
             handle.write(json.dumps(row, ensure_ascii=True) + "\n")
 
 
-def score_completion_text(task: dict, completion_text: str) -> dict:
+def score_completion_text(task: dict, observation: dict, completion_text: str) -> dict:
     env = PhysioSupportEnv(task=deepcopy(task))
     env.reset_dict()
 
     try:
         action_input: dict[str, Any] = extract_json_object(completion_text)
+        action_input = validate_submission_payload(action_input, observation)
     except Exception:
         action_input = {"raw_completion": completion_text}
 
@@ -59,12 +60,17 @@ class EnvironmentRewardFunction:
     def __post_init__(self) -> None:
         self.__name__ = f"environment_reward_{self.reward_mode}"
 
-    def __call__(self, completions, task_json, **kwargs) -> list[float]:
+    def __call__(self, completions, task_json, observation_json, **kwargs) -> list[float]:
         rewards: list[float] = []
-        for completion, serialized_task in zip(completions, task_json):
+        for completion, serialized_task, serialized_observation in zip(completions, task_json, observation_json):
             task = json.loads(serialized_task) if isinstance(serialized_task, str) else deepcopy(serialized_task)
+            observation = (
+                json.loads(serialized_observation)
+                if isinstance(serialized_observation, str)
+                else deepcopy(serialized_observation)
+            )
             completion_text = _completion_to_text(completion)
-            result = score_completion_text(task, completion_text)
+            result = score_completion_text(task, observation, completion_text)
             reward_key = "task_score" if self.reward_mode == "task_score" else "raw_reward"
             rewards.append(float(result[reward_key]))
         return rewards
@@ -74,7 +80,7 @@ def _build_grpo_row(example: dict) -> dict:
     observation = deepcopy(example["observation"])
     task = deepcopy(example["task"])
     return {
-        "prompt": render_plain_prompt(observation),
+        "prompt": build_messages(observation),
         "task_json": json.dumps(task, ensure_ascii=True),
         "observation_json": json.dumps(observation, ensure_ascii=True),
         "task_id": example["task_id"],
