@@ -9,6 +9,7 @@ from app.evaluation import save_evaluation, save_json
 from app.heuristic_policy import HeuristicPolicy
 from app.model_policy import HuggingFaceModelPolicy
 from app.plotting import write_line_chart_svg
+from app.teacher_data import build_teacher_training_bundle
 from app.training_data import build_sft_splits, build_split_summary
 from app.warmup import build_warmup_showcase, evaluate_warmup_policy
 
@@ -29,12 +30,24 @@ def run_warmup(
     seed: int,
     max_new_tokens: int,
     showcase_limit: int,
+    training_data_mode: str,
+    teacher_min_score: float,
+    teacher_max_penalties: int,
 ) -> dict:
     torch, Dataset, AutoModelForCausalLM, AutoTokenizer, SFTConfig, SFTTrainer, LoraConfig, TaskType = _training_imports()
 
     os.makedirs(output_dir, exist_ok=True)
     train_examples, eval_examples = build_sft_splits(variants_per_task=variants_per_task)
     split_summary = build_split_summary(variants_per_task=variants_per_task)
+    teacher_bundle = None
+    if training_data_mode == "teacher":
+        teacher_bundle = build_teacher_training_bundle(
+            variants_per_task=variants_per_task,
+            min_score=teacher_min_score,
+            max_penalties=teacher_max_penalties,
+        )
+        train_examples = teacher_bundle["train_examples"]
+
     tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
     if tokenizer.pad_token is None and tokenizer.eos_token is not None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -139,6 +152,7 @@ def run_warmup(
         "output_dir": output_dir,
         "base_model": base_model,
         "adapter_path": output_dir,
+        "training_data_mode": training_data_mode,
         "train_case_count": len(train_examples),
         "eval_case_count": len(eval_examples),
         "split_summary": split_summary,
@@ -147,6 +161,8 @@ def run_warmup(
         "heuristic_schema_metrics": heuristic_schema["metrics"],
         "schema_improvement": _metric_delta(baseline_schema["metrics"], trained_schema["metrics"]),
     }
+    if teacher_bundle is not None:
+        summary["teacher_data_summary"] = teacher_bundle["summary"]
     save_json(os.path.join(output_dir, "warmup_summary.json"), summary)
     return summary
 
@@ -255,6 +271,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=7, help="Random seed.")
     parser.add_argument("--max-new-tokens", type=int, default=256, help="Max generation length for schema evaluation.")
     parser.add_argument("--showcase-limit", type=int, default=3, help="How many representative examples to save.")
+    parser.add_argument(
+        "--training-data-mode",
+        type=str,
+        choices=["structured", "teacher"],
+        default="teacher",
+        help="Bootstrap SFT source. Teacher mode uses high-scoring heuristic demonstrations as the warm start.",
+    )
+    parser.add_argument(
+        "--teacher-min-score",
+        type=float,
+        default=0.8,
+        help="Minimum teacher task score required when training-data-mode=teacher.",
+    )
+    parser.add_argument(
+        "--teacher-max-penalties",
+        type=int,
+        default=0,
+        help="Maximum number of teacher penalties allowed when training-data-mode=teacher.",
+    )
     return parser.parse_args()
 
 
@@ -276,6 +311,9 @@ def main() -> None:
         seed=args.seed,
         max_new_tokens=args.max_new_tokens,
         showcase_limit=args.showcase_limit,
+        training_data_mode=args.training_data_mode,
+        teacher_min_score=args.teacher_min_score,
+        teacher_max_penalties=args.teacher_max_penalties,
     )
     print(json.dumps(summary, indent=2))
 

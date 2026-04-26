@@ -24,6 +24,9 @@ def run_phase55_bootstrap_sft(
     seed: int,
     max_new_tokens: int,
     showcase_limit: int,
+    training_data_mode: str,
+    teacher_min_score: float,
+    teacher_max_penalties: int,
 ) -> dict:
     summary = run_warmup(
         base_model=base_model,
@@ -41,10 +44,13 @@ def run_phase55_bootstrap_sft(
         seed=seed,
         max_new_tokens=max_new_tokens,
         showcase_limit=showcase_limit,
+        training_data_mode=training_data_mode,
+        teacher_min_score=teacher_min_score,
+        teacher_max_penalties=teacher_max_penalties,
     )
     summary = {
         "training_type": "bootstrap_sft",
-        "bootstrap_source": "structured_target_sft",
+        "bootstrap_source": "heuristic_teacher_sft" if training_data_mode == "teacher" else "structured_target_sft",
         **summary,
     }
     save_json(os.path.join(output_dir, "bootstrap_summary.json"), summary)
@@ -75,6 +81,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=7, help="Random seed.")
     parser.add_argument("--max-new-tokens", type=int, default=256, help="Max generation length for bootstrap evaluation.")
     parser.add_argument("--showcase-limit", type=int, default=3, help="How many representative examples to save.")
+    parser.add_argument(
+        "--training-data-mode",
+        type=str,
+        choices=["structured", "teacher"],
+        default="teacher",
+        help="Bootstrap SFT source. Teacher mode uses high-scoring heuristic demonstrations as the warm start.",
+    )
+    parser.add_argument(
+        "--teacher-min-score",
+        type=float,
+        default=0.8,
+        help="Minimum teacher task score required when training-data-mode=teacher.",
+    )
+    parser.add_argument(
+        "--teacher-max-penalties",
+        type=int,
+        default=0,
+        help="Maximum number of teacher penalties allowed when training-data-mode=teacher.",
+    )
     return parser.parse_args()
 
 
@@ -96,6 +121,9 @@ def main() -> None:
         seed=args.seed,
         max_new_tokens=args.max_new_tokens,
         showcase_limit=args.showcase_limit,
+        training_data_mode=args.training_data_mode,
+        teacher_min_score=args.teacher_min_score,
+        teacher_max_penalties=args.teacher_max_penalties,
     )
     print(json.dumps(summary, indent=2))
 

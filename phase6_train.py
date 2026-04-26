@@ -40,6 +40,9 @@ def run_phase6_training(
     bootstrap_per_device_eval_batch_size: int,
     bootstrap_max_length: int,
     bootstrap_showcase_limit: int,
+    bootstrap_training_data_mode: str,
+    bootstrap_teacher_min_score: float,
+    bootstrap_teacher_max_penalties: int,
 ) -> dict:
     (
         torch,
@@ -94,6 +97,9 @@ def run_phase6_training(
             seed=seed,
             max_new_tokens=max_completion_length,
             showcase_limit=bootstrap_showcase_limit,
+            training_data_mode=bootstrap_training_data_mode,
+            teacher_min_score=bootstrap_teacher_min_score,
+            teacher_max_penalties=bootstrap_teacher_max_penalties,
         )
 
     tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
@@ -280,6 +286,9 @@ def _prepare_bootstrap_adapter(
     seed: int,
     max_new_tokens: int,
     showcase_limit: int,
+    training_data_mode: str,
+    teacher_min_score: float,
+    teacher_max_penalties: int,
 ) -> tuple[str, dict | None]:
     adapter_config_path = os.path.join(output_dir, "adapter_config.json")
     if os.path.isdir(output_dir) and os.path.isfile(adapter_config_path):
@@ -301,6 +310,9 @@ def _prepare_bootstrap_adapter(
         seed=seed,
         max_new_tokens=max_new_tokens,
         showcase_limit=showcase_limit,
+        training_data_mode=training_data_mode,
+        teacher_min_score=teacher_min_score,
+        teacher_max_penalties=teacher_max_penalties,
     )
     return str(summary["adapter_path"]), summary
 
@@ -386,6 +398,25 @@ def parse_args() -> argparse.Namespace:
         default=3,
         help="How many representative bootstrap examples to save.",
     )
+    parser.add_argument(
+        "--bootstrap-training-data-mode",
+        type=str,
+        choices=["structured", "teacher"],
+        default="teacher",
+        help="Bootstrap SFT source used by --bootstrap-auto.",
+    )
+    parser.add_argument(
+        "--bootstrap-teacher-min-score",
+        type=float,
+        default=0.8,
+        help="Minimum teacher task score required when bootstrap-training-data-mode=teacher.",
+    )
+    parser.add_argument(
+        "--bootstrap-teacher-max-penalties",
+        type=int,
+        default=0,
+        help="Maximum number of teacher penalties allowed when bootstrap-training-data-mode=teacher.",
+    )
     return parser.parse_args()
 
 
@@ -417,6 +448,9 @@ def main() -> None:
         bootstrap_per_device_eval_batch_size=args.bootstrap_per_device_eval_batch_size,
         bootstrap_max_length=args.bootstrap_max_length,
         bootstrap_showcase_limit=args.bootstrap_showcase_limit,
+        bootstrap_training_data_mode=args.bootstrap_training_data_mode,
+        bootstrap_teacher_min_score=args.bootstrap_teacher_min_score,
+        bootstrap_teacher_max_penalties=args.bootstrap_teacher_max_penalties,
     )
     print(json.dumps(summary, indent=2))
 
